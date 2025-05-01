@@ -6,7 +6,7 @@
         public string FIO { get; set; }
         public string Email { get; set; }
         public string Phone { get; set; }
-        public List<Record> Records { get; set; }
+        public List<Record> Records { get; set; } = new List<Record>();
     }
     public class Record
     {
@@ -67,7 +67,7 @@
     {
         public int Id { get; set; }
         public string NameOfCredit { get; set; }
-        public decimal DepositCurrentValue { get; set; }
+        public decimal CreditCurrentValue { get; set; }
         public DateTime DateOfOpening { get; set;  }
         public int PeriodOfPayment { get; set; }
         public decimal InterestRate { get; set; }
