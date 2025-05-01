@@ -79,7 +79,7 @@
     public enum PaymentType 
     { 
         Monthly,
-        Quartery,
+        Quarterly,
         Once
     }
 }
