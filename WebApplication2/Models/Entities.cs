@@ -1,4 +1,6 @@
-﻿namespace Trainacc
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace Trainacc.Models
 {
     public class Users
     {
@@ -68,7 +70,7 @@
         public int Id { get; set; }
         public string NameOfCredit { get; set; }
         public decimal CreditCurrentValue { get; set; }
-        public DateTime DateOfOpening { get; set;  }
+        public DateTime DateOfOpening { get; set; }
         public int PeriodOfPayment { get; set; }
         public decimal InterestRate { get; set; }
         public PaymentType PayType { get; set; }
@@ -76,8 +78,8 @@
         public Record Record { get; set; }
     }
 
-    public enum PaymentType 
-    { 
+    public enum PaymentType
+    {
         Monthly,
         Quarterly,
         Once
