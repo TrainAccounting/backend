@@ -18,11 +18,11 @@ namespace Trainacc.Models
         public int UserId { get; set; }
         public Users User { get; set; }
 
-        public Restriction Restriction { get; set; }
-        public Account Account { get; set; }
-        public Transactions Transactions { get; set; }
-        public Deposit Deposit { get; set; }
-        public Credit Credit { get; set; }
+        public List<Restriction> Restrictions { get; set; } = new List<Restriction>();
+        public List<Account> Accounts { get; set; } = new List<Account>();
+        public List<Transactions> Transactions { get; set; } = new List<Transactions>();
+        public List<Deposit> Deposits { get; set; } = new List<Deposit>();
+        public List<Credit> Credits { get; set; } = new List<Credit>();
     }
     public class Restriction
     {
@@ -31,7 +31,6 @@ namespace Trainacc.Models
         public decimal RestrictionValue { get; set; }
         public decimal MoneySpent { get; set; }
         public int RecordId { get; set; }
-        public Record Record { get; set; }
     }
     public class Account
     {
@@ -40,7 +39,6 @@ namespace Trainacc.Models
         public decimal AccountValue { get; set; }
         public DateTime DateOfOpening { get; set; }
         public int RecordId { get; set; }
-        public Record Record { get; set; }
     }
     public class Transactions
     {
@@ -49,7 +47,6 @@ namespace Trainacc.Models
         public decimal TransactionValue { get; set; }
         public DateTime TimeOfTransaction { get; set; }
         public int RecordId { get; set; }
-        public Record Record { get; set; }
     }
     public class Deposit
     {
@@ -63,7 +60,6 @@ namespace Trainacc.Models
         public bool Capitalisation { get; set; }
         public PaymentType PayType { get; set; }
         public int RecordId { get; set; }
-        public Record Record { get; set; }
     }
     public class Credit
     {
@@ -75,7 +71,6 @@ namespace Trainacc.Models
         public decimal InterestRate { get; set; }
         public PaymentType PayType { get; set; }
         public int RecordId { get; set; }
-        public Record Record { get; set; }
     }
 
     public enum PaymentType
