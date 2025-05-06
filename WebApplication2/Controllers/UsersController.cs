@@ -16,18 +16,18 @@ namespace Trainacc.Controllers
             _context = context;
         }
 
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Users>>> GetUsers()
-        {
-            return await _context.Users.Include(u => u.Records).ToListAsync();
-        }
+        //[HttpGet]
+        //public async Task<ActionResult<IEnumerable<Users>>> GetUsers()
+        //{
+        //    return await _context.Users.Include(u => u.Record).ToListAsync();
+        //}
 
-        [HttpPost]
-        public async Task<ActionResult<Users>> CreateUser(Users user)
-        {
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetUsers), new { id = user.Id }, user);
-        }
+        //[HttpPost]
+        //public async Task<ActionResult<Users>> CreateUser(Users user)
+        //{
+        //    _context.Users.Add(user);
+        //    await _context.SaveChangesAsync();
+        //    return CreatedAtAction(nameof(GetUsers), new { id = user.Id }, user);
+        //}
     }
 }

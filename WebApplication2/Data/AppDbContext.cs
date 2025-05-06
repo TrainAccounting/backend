@@ -7,6 +7,7 @@ namespace Trainacc.Data
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
+            Database.EnsureCreated();
         }
 
         public DbSet<Users> Users { get; set; }
@@ -20,6 +21,13 @@ namespace Trainacc.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<Users>().HasData(
+
+                new Users { Id = 1, FIO = "John", Email = "Lol" },
+                new Users { Id = 2, FIO = "ShotgunCopMan", Email = "SatanWilFall@gmail.com"}
+
+            );
 
             modelBuilder.Entity<Record>()
                 .HasMany(r => r.Restrictions)
