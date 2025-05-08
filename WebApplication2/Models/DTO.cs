@@ -10,17 +10,30 @@ namespace Trainacc.Models
         public string? Phone { get; set; }
     }
 
+    public class UserAuthDto
+    {
+        public int Id { get; set; }
+        public string Email { get; set; }
+        public string Role { get; set; }
+        public string Token { get; set; }
+    }
+
     public class UserCreateDto
     {
         [Required]
         [StringLength(100)]
         public string FIO { get; set; } = null!;
 
+        [Required]
         [EmailAddress]
-        public string? Email { get; set; }
+        public string Email { get; set; }
 
         [Phone]
         public string? Phone { get; set; }
+
+        [Required]
+        [StringLength(100, MinimumLength = 6)]
+        public string Password { get; set; }
     }
 
     public class UserUpdateDto

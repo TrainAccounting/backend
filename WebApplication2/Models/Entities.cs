@@ -8,6 +8,8 @@ namespace Trainacc.Models
         public string? FIO { get; set; }
         public string? Email { get; set; }
         public string? Phone { get; set; }
+        public string PasswordHash { get; set; }
+        public string Role { get; set; } = "User";
         public List<Record> Records { get; set; } = new List<Record>();
     }
     public class Record
