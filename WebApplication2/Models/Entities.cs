@@ -8,7 +8,7 @@ namespace Trainacc.Models
         public string? FIO { get; set; }
         public string? Email { get; set; }
         public string? Phone { get; set; }
-        //public List<Record> Records { get; set; } = new List<Record>();
+        public List<Record> Records { get; set; } = new List<Record>();
     }
     public class Record
     {

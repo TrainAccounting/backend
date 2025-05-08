@@ -22,12 +22,11 @@ namespace Trainacc.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            modelBuilder.Entity<Users>().HasData(
-
-                new Users { Id = 1, FIO = "John", Email = "Lol" },
-                new Users { Id = 2, FIO = "ShotgunCopMan", Email = "SatanWilFall@gmail.com"}
-
-            );
+            modelBuilder.Entity<Users>()
+                .HasMany(u => u.Records)
+                .WithOne(r => r.User)
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Record>()
                 .HasMany(r => r.Restrictions)
