@@ -8,6 +8,9 @@ namespace Trainacc.Models
         public string? FIO { get; set; }
         public string? Email { get; set; }
         public string? Phone { get; set; }
+        public string PasswordHash { get; set; } = null!;
+
+        public string? Role { get; set; }
     }
 
     public class UserAuthDto
@@ -26,14 +29,16 @@ namespace Trainacc.Models
 
         [Required]
         [EmailAddress]
-        public string Email { get; set; }
+        public string Email { get; set; } = null!;
 
         [Phone]
         public string? Phone { get; set; }
 
         [Required]
         [StringLength(100, MinimumLength = 6)]
-        public string Password { get; set; }
+        public string Password { get; set; } = null!;
+
+        public string? Role { get; set; }
     }
 
     public class UserUpdateDto
@@ -46,6 +51,11 @@ namespace Trainacc.Models
 
         [Phone]
         public string? Phone { get; set; }
+
+        [StringLength(100, MinimumLength = 6)]
+        public string Password { get; set; } = null!;
+
+        public string? Role { get; set; }
     }
 
     public class UserWithRecordsDto
@@ -141,5 +151,94 @@ namespace Trainacc.Models
         public int PeriodOfPayment { get; set; }
         public decimal InterestRate { get; set; }
         public PaymentType PayType { get; set; }
+    }
+
+    public class UserLoginDto
+    {
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; }
+
+        [Required]
+        public string Password { get; set; }
+    }
+
+    public class AccountCreateDto
+    {
+        [Required] public string NameOfAccount { get; set; }
+        [Required] public decimal AccountValue { get; set; }
+        [Required] public int RecordId { get; set; }
+    }
+
+    public class AccountUpdateDto
+    {
+        public string? NameOfAccount { get; set; }
+        public decimal? AccountValue { get; set; }
+    }
+
+    public class CreditCreateDto
+    {
+        [Required] public string NameOfCredit { get; set; }
+        [Required] public decimal CreditCurrentValue { get; set; }
+        [Required] public int RecordId { get; set; }
+        [Required] public int PeriodOfPayment { get; set; }
+        [Required] public decimal InterestRate { get; set; }
+        [Required] public PaymentType PayType { get; set; }
+    }
+
+    public class CreditUpdateDto
+    {
+        public string? NameOfCredit { get; set; }
+        public decimal? CreditCurrentValue { get; set; }
+        public int? PeriodOfPayment { get; set; }
+        public decimal? InterestRate { get; set; }
+        public PaymentType? PayType { get; set; }
+    }
+
+    public class DepositCreateDto
+    {
+        [Required] public string NameOfDeposit { get; set; }
+        [Required] public decimal DepositStartValue { get; set; }
+        [Required] public int RecordId { get; set; }
+        [Required] public int PeriodOfPayment { get; set; }
+        [Required] public decimal InterestRate { get; set; }
+        [Required] public bool Capitalisation { get; set; }
+        [Required] public PaymentType PayType { get; set; }
+    }
+
+    public class DepositUpdateDto
+    {
+        public string? NameOfDeposit { get; set; }
+        public decimal? DepositCurrentValue { get; set; }
+        public int? PeriodOfPayment { get; set; }
+        public decimal? InterestRate { get; set; }
+        public bool? Capitalisation { get; set; }
+        public PaymentType? PayType { get; set; }
+    }
+
+    public class RestrictionCreateDto
+    {
+        [Required] public string Category { get; set; }
+        [Required] public decimal RestrictionValue { get; set; }
+        [Required] public int RecordId { get; set; }
+    }
+
+    public class RestrictionUpdateDto
+    {
+        public string? Category { get; set; }
+        public decimal? RestrictionValue { get; set; }
+    }
+
+    public class TransactionCreateDto
+    {
+        [Required] public string Category { get; set; }
+        [Required] public decimal TransactionValue { get; set; }
+        [Required] public int RecordId { get; set; }
+    }
+
+    public class TransactionUpdateDto
+    {
+        public string? Category { get; set; }
+        public decimal? TransactionValue { get; set; }
     }
 }

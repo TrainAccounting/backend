@@ -1,43 +1,72 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Trainacc.Data;
 using Trainacc.Models;
 using Trainacc.Services;
-using Microsoft.AspNetCore.Authorization;
-using Trainacc.Data;
+using Trainacc.Filters;
 
 namespace Trainacc.Controllers
 {
-    [ApiController]
     [Route("api/[controller]")]
-    [AllowAnonymous]
+    [ApiController]
+    [ServiceFilter(typeof(LogActionFilter))]
+    [ServiceFilter(typeof(ETagFilter))]
     public class AuthController : ControllerBase
     {
-        private readonly TokenService _tokenService;
         private readonly AppDbContext _context;
+        private readonly TokenService _tokenService;
 
-        public AuthController(TokenService tokenService, AppDbContext context)
+        public AuthController(AppDbContext context, TokenService tokenService)
         {
-            _tokenService = tokenService;
             _context = context;
+            _tokenService = tokenService;
+        }
+
+        [HttpPost("register")]
+        public async Task<ActionResult<UserAuthDto>> Register(UserCreateDto userDto)
+        {
+            if (await _context.Users.AnyAsync(u => u.Email == userDto.Email))
+                return BadRequest("Email already exists.");
+
+            var user = new Users
+            {
+                FIO = userDto.FIO,
+                Email = userDto.Email,
+                Phone = userDto.Phone,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(userDto.Password),
+                Role = "User"
+            };
+
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+
+            var token = _tokenService.GenerateToken(user);
+
+            return new UserAuthDto
+            {
+                Id = user.Id,
+                Email = user.Email,
+                Role = user.Role,
+                Token = token
+            };
         }
 
         [HttpPost("login")]
-        public IActionResult Login([FromBody] LoginRequest request)
+        public async Task<ActionResult<UserAuthDto>> Login(UserLoginDto loginDto)
         {
-            var user = _context.Users.FirstOrDefault(u => u.Email == request.Email);
-            if (user == null || !VerifyPassword(request.Password, user.PasswordHash))
-                return Unauthorized("Invalid credentials");
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == loginDto.Email);
+            if (user == null || !BCrypt.Net.BCrypt.Verify(loginDto.Password, user.PasswordHash))
+                return Unauthorized("Invalid email or password.");
 
-            var token = _tokenService.GenerateToken(user.Email, "User");
-            return Ok(new { Token = token });
+            var token = _tokenService.GenerateToken(user);
+
+            return new UserAuthDto
+            {
+                Id = user.Id,
+                Email = user.Email,
+                Role = user.Role,
+                Token = token
+            };
         }
-
-        private bool VerifyPassword(string password, string storedHash)
-            => BCrypt.Net.BCrypt.Verify(password, storedHash);
-    }
-
-    public class LoginRequest
-    {
-        public string Email { get; set; }
-        public string Password { get; set; }
     }
 }

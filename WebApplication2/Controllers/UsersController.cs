@@ -31,6 +31,7 @@ namespace Trainacc.Controllers
                     FIO = u.FIO,
                     Email = u.Email,
                     Phone = u.Phone
+
                 })
                 .ToListAsync();
         }
@@ -50,7 +51,8 @@ namespace Trainacc.Controllers
                 Id = user.Id,
                 FIO = user.FIO,
                 Email = user.Email,
-                Phone = user.Phone
+                Phone = user.Phone,
+                Role = user.Role
             };
         }
 
@@ -87,11 +89,16 @@ namespace Trainacc.Controllers
         [HttpPost]
         public async Task<ActionResult<UserDto>> CreateUser(UserCreateDto userDto)
         {
+            if (await _context.Users.AnyAsync(u => u.Email == userDto.Email))
+                return BadRequest("Email already exists");
+
             var user = new Users
             {
                 FIO = userDto.FIO,
                 Email = userDto.Email,
-                Phone = userDto.Phone
+                Phone = userDto.Phone,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(userDto.Password),
+                Role = userDto.Role ?? "User" 
             };
 
             _context.Users.Add(user);
@@ -102,7 +109,9 @@ namespace Trainacc.Controllers
                 Id = user.Id,
                 FIO = user.FIO,
                 Email = user.Email,
-                Phone = user.Phone
+                Phone = user.Phone,
+                PasswordHash = user.PasswordHash,
+                Role = user.Role
             });
         }
 

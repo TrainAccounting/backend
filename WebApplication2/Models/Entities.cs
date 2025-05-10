@@ -8,7 +8,9 @@ namespace Trainacc.Models
         public string? FIO { get; set; }
         public string? Email { get; set; }
         public string? Phone { get; set; }
-        public string PasswordHash { get; set; }
+        [Required]
+        public string PasswordHash { get; set; } = null!;
+        [Required]
         public string Role { get; set; } = "User";
         public List<Record> Records { get; set; } = new List<Record>();
     }

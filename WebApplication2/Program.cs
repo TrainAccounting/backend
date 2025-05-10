@@ -28,7 +28,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
+});
 
 builder.Services.AddControllers(options =>
 {
@@ -74,6 +77,7 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<LogActionFilter>();
 builder.Services.AddScoped<ETagFilter>();
+builder.Services.AddScoped<ValidateModelAttribute>();
 builder.Services.AddScoped<RoleBasedAuthFilter>(_ =>
     new RoleBasedAuthFilter("Admin"));
 
@@ -96,10 +100,10 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
-}
+//using (var scope = app.Services.CreateScope())
+//{
+//    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+//    db.Database.Migrate();
+//}
 
 app.Run();
