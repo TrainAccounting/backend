@@ -6,6 +6,7 @@ using System.Text;
 using Trainacc.Data;
 using Trainacc.Filters;
 using Trainacc.Services;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,14 +25,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
+            RoleClaimType = ClaimTypes.Role
         };
     });
-
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
-});
 
 builder.Services.AddControllers(options =>
 {
@@ -45,8 +42,8 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "Financial API",
         Version = "v1",
-        Description = "API for financial management system",
-        Contact = new OpenApiContact { Name = "Support", Email = "support@finance.com" }
+        Description = "API for financial management system at home",
+        Contact = new OpenApiContact { Name = "Help Ilya!", Email = "igo36413@gmail.com" }
     });
 
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -69,17 +66,18 @@ builder.Services.AddSwaggerGen(c =>
                     Id = "Bearer"
                 }
             },
-            Array.Empty<string>()
+            new string[]{}
         }
     });
 });
 
+builder.Services.AddAuthorization();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<LogActionFilter>();
 builder.Services.AddScoped<ETagFilter>();
 builder.Services.AddScoped<ValidateModelAttribute>();
-builder.Services.AddScoped<RoleBasedAuthFilter>(_ =>
-    new RoleBasedAuthFilter("Admin"));
+//builder.Services.AddScoped<RoleBasedAuthFilter>(_ =>
+//    new RoleBasedAuthFilter("Admin"));
 
 var app = builder.Build();
 
@@ -99,11 +97,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
-//using (var scope = app.Services.CreateScope())
-//{
-//    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-//    db.Database.Migrate();
-//}
 
 app.Run();

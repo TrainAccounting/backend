@@ -31,30 +31,39 @@ namespace Trainacc.Controllers
                 })
                 .ToListAsync();
 
-        [HttpPost]
-        public async Task<ActionResult<RestrictionDto>> CreateRestriction(RestrictionCreateDto dto)
+        [HttpGet("all")]
+        public async Task<ActionResult<IEnumerable<RestrictionDto>>> GetAllRestrictions()
         {
-            var record = await _context.Records.FindAsync(dto.RecordId);
-            if (record == null) return NotFound("Record not found");
+            var recordId = GetRecordId();
+            return await _context.Restrictions
+                .Where(r => r.RecordId == recordId)
+                .Select(r => new RestrictionDto
+                {
+                    Id = r.Id,
+                    Name = r.Name,
+                    Description = r.Description,
+                    IsActive = r.IsActive
+                })
+                .ToListAsync();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> CreateRestriction([FromBody] RestrictionDto dto)
+        {
+            var recordId = GetRecordId();
 
             var restriction = new Restriction
             {
-                Category = dto.Category,
-                RestrictionValue = dto.RestrictionValue,
-                MoneySpent = 0,
-                RecordId = dto.RecordId
+                Name = dto.Name,
+                Description = dto.Description,
+                IsActive = dto.IsActive,
+                RecordId = recordId
             };
 
             _context.Restrictions.Add(restriction);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetRestrictionsByRecord), new { recordId = dto.RecordId }, new RestrictionDto
-            {
-                Id = restriction.Id,
-                Category = restriction.Category,
-                RestrictionValue = restriction.RestrictionValue,
-                MoneySpent = restriction.MoneySpent
-            });
+            return CreatedAtAction(nameof(GetAllRestrictions), new { id = restriction.Id }, dto);
         }
 
         [HttpPut("{id}")]
@@ -79,6 +88,46 @@ namespace Trainacc.Controllers
             _context.Restrictions.Remove(restriction);
             await _context.SaveChangesAsync();
             return NoContent();
+        }
+
+        [HttpGet("summary")]
+        public async Task<ActionResult<RestrictionSummaryDto>> GetRestrictionSummary()
+        {
+            var recordId = GetRecordId();
+            var restrictions = await _context.Restrictions.Where(r => r.RecordId == recordId).ToListAsync();
+
+            return new RestrictionSummaryDto
+            {
+                TotalRestrictions = restrictions.Count,
+                ActiveRestrictions = restrictions.Count(r => r.IsActive)
+            };
+        }
+
+        [HttpGet("report/{recordId}")]
+        public async Task<ActionResult<IEnumerable<RestrictionReportDto>>> GetRestrictionReport(int recordId)
+        {
+            var record = await _context.Records.Include(r => r.Restrictions).FirstOrDefaultAsync(r => r.Id == recordId);
+            if (record == null) return NotFound("Record not found");
+
+            var report = record.Restrictions.Select(r => new RestrictionReportDto
+            {
+                RestrictionId = r.Id,
+                Category = r.Category,
+                RestrictionValue = r.RestrictionValue,
+                MoneySpent = r.MoneySpent
+            }).ToList();
+
+            return Ok(report);
+        }
+
+        private int GetRecordId()
+        {
+            var recordIdClaim = User.FindFirst("RecordId");
+            if (recordIdClaim == null)
+            {
+                throw new NullReferenceException("RecordId claim is missing.");
+            }
+            return int.Parse(recordIdClaim.Value);
         }
     }
 }

@@ -1,11 +1,14 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using Trainacc.Data;
 using Trainacc.Filters;
 using Trainacc.Models;
 
 namespace Trainacc.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     [ServiceFilter(typeof(LogActionFilter))]
@@ -111,17 +114,19 @@ namespace Trainacc.Controllers
         [HttpPost]
         public async Task<ActionResult<RecordDto>> CreateRecord(RecordCreateDto recordDto)
         {
-            var user = await _context.Users.FindAsync(recordDto.UserId);
-            if (user == null)
-            {
-                return BadRequest("User not found");
-            }
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId == null) return Unauthorized("User not authenticated");
+
+            var user = await _context.Users.Include(u => u.Records).FirstOrDefaultAsync(u => u.Id == int.Parse(userId));
+            if (user == null) return BadRequest("User not found");
+
+            if (user.Records.Any()) return BadRequest("User already has a record");
 
             var record = new Record
             {
                 NameOfRecord = recordDto.NameOfRecord,
                 DateOfCreation = DateTime.UtcNow,
-                UserId = recordDto.UserId
+                UserId = user.Id
             };
 
             _context.Records.Add(record);
@@ -131,14 +136,7 @@ namespace Trainacc.Controllers
             {
                 Id = record.Id,
                 NameOfRecord = record.NameOfRecord,
-                DateOfCreation = record.DateOfCreation,
-                User = new UserDto
-                {
-                    Id = user.Id,
-                    FIO = user.FIO,
-                    Email = user.Email,
-                    Phone = user.Phone
-                }
+                DateOfCreation = record.DateOfCreation
             });
         }
     }

@@ -25,6 +25,20 @@ namespace Trainacc.Controllers
                 .Select(c => new CreditDto
                 {
                     Id = c.Id,
+                    CreditCurrentValue = c.CreditCurrentValue,
+                    PayType = c.PayType
+                })
+                .ToListAsync();
+
+        [HttpGet("all")]
+        public async Task<ActionResult<IEnumerable<CreditDto>>> GetAllCredits()
+        {
+            var recordId = GetRecordId();
+            return await _context.Credits
+                .Where(c => c.RecordId == recordId)
+                .Select(c => new CreditDto
+                {
+                    Id = c.Id,
                     NameOfCredit = c.NameOfCredit,
                     CreditCurrentValue = c.CreditCurrentValue,
                     DateOfOpening = c.DateOfOpening,
@@ -33,37 +47,24 @@ namespace Trainacc.Controllers
                     PayType = c.PayType
                 })
                 .ToListAsync();
+        }
 
         [HttpPost]
-        public async Task<ActionResult<CreditDto>> CreateCredit(CreditCreateDto dto)
+        public async Task<IActionResult> CreateCredit([FromBody] CreditDto dto)
         {
-            var record = await _context.Records.FindAsync(dto.RecordId);
-            if (record == null) return NotFound("Record not found");
-
+            var recordId = GetRecordId();
+            
             var credit = new Credit
             {
-                NameOfCredit = dto.NameOfCredit,
                 CreditCurrentValue = dto.CreditCurrentValue,
-                DateOfOpening = DateTime.UtcNow,
-                PeriodOfPayment = dto.PeriodOfPayment,
-                InterestRate = dto.InterestRate,
                 PayType = dto.PayType,
-                RecordId = dto.RecordId
+                RecordId = recordId
             };
 
             _context.Credits.Add(credit);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetCreditsByRecord), new { recordId = dto.RecordId }, new CreditDto
-            {
-                Id = credit.Id,
-                NameOfCredit = credit.NameOfCredit,
-                CreditCurrentValue = credit.CreditCurrentValue,
-                DateOfOpening = credit.DateOfOpening,
-                PeriodOfPayment = credit.PeriodOfPayment,
-                InterestRate = credit.InterestRate,
-                PayType = credit.PayType
-            });
+            return CreatedAtAction(nameof(GetAllCredits), new { id = credit.Id }, dto);
         }
 
         [HttpPut("{id}")]
@@ -76,7 +77,6 @@ namespace Trainacc.Controllers
             credit.CreditCurrentValue = dto.CreditCurrentValue ?? credit.CreditCurrentValue;
             credit.PeriodOfPayment = dto.PeriodOfPayment ?? credit.PeriodOfPayment;
             credit.InterestRate = dto.InterestRate ?? credit.InterestRate;
-            credit.PayType = dto.PayType ?? credit.PayType;
 
             await _context.SaveChangesAsync();
             return NoContent();
@@ -91,6 +91,47 @@ namespace Trainacc.Controllers
             _context.Credits.Remove(credit);
             await _context.SaveChangesAsync();
             return NoContent();
+        }
+
+        [HttpGet("summary")]
+        public async Task<ActionResult<CreditSummaryDto>> GetCreditSummary()
+        {
+            var recordId = GetRecordId(); 
+            var credits = await _context.Credits.Where(c => c.RecordId == recordId).ToListAsync();
+
+            return new CreditSummaryDto
+            {
+                TotalCredits = (int)credits.Sum(d => d.CreditCurrentValue),
+                ActiveCredits = credits.Count(c => c.IsActive)
+            };
+        }
+
+        [HttpGet("report/{recordId}")]
+        public async Task<ActionResult<IEnumerable<CreditReportDto>>> GetCreditReport(int recordId)
+        {
+            var record = await _context.Records.Include(r => r.Credits).FirstOrDefaultAsync(r => r.Id == recordId);
+            if (record == null) return NotFound("Record not found");
+
+            var report = record.Credits.Select(c => new CreditReportDto
+            {
+                CreditId = c.Id,
+                Name = c.NameOfCredit,
+                CurrentValue = c.CreditCurrentValue,
+                InterestRate = c.InterestRate,
+                PeriodOfPayment = c.PeriodOfPayment
+            }).ToList();
+
+            return Ok(report);
+        }
+
+        private int GetRecordId()
+        {
+            var recordIdClaim = User.FindFirst("RecordId");
+            if (recordIdClaim == null)
+            {
+                throw new NullReferenceException("RecordId claim is missing.");
+            }
+            return int.Parse(recordIdClaim.Value);
         }
     }
 }

@@ -31,24 +31,39 @@ namespace Trainacc.Controllers
                 })
                 .ToListAsync();
 
+        [HttpGet("all")]
+        public async Task<ActionResult<IEnumerable<TransactionDto>>> GetAllTransactions()
+        {
+            var recordId = GetRecordId();
+            return await _context.Transactions
+                .Where(t => t.RecordId == recordId)
+                .Select(t => new TransactionDto
+                {
+                    Id = t.Id,
+                    Category = t.Category,
+                    TransactionValue = t.TransactionValue,
+                    TimeOfTransaction = t.TimeOfTransaction
+                })
+                .ToListAsync();
+        }
+
         [HttpPost]
         public async Task<ActionResult<TransactionDto>> CreateTransaction(TransactionCreateDto dto)
         {
-            var record = await _context.Records.FindAsync(dto.RecordId);
-            if (record == null) return NotFound("Record not found");
+            var recordId = GetRecordId();
 
             var transaction = new Transactions
             {
                 Category = dto.Category,
                 TransactionValue = dto.TransactionValue,
                 TimeOfTransaction = DateTime.UtcNow,
-                RecordId = dto.RecordId
+                RecordId = recordId
             };
 
             _context.Transactions.Add(transaction);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetTransactionsByRecord), new { recordId = dto.RecordId }, new TransactionDto
+            return CreatedAtAction(nameof(GetAllTransactions), new { id = transaction.Id }, new TransactionDto
             {
                 Id = transaction.Id,
                 Category = transaction.Category,
@@ -79,6 +94,46 @@ namespace Trainacc.Controllers
             _context.Transactions.Remove(transaction);
             await _context.SaveChangesAsync();
             return NoContent();
+        }
+
+        [HttpGet("summary")]
+        public async Task<ActionResult<TransactionSummaryDto>> GetTransactionSummary()
+        {
+            var recordId = GetRecordId();
+            var transactions = await _context.Transactions.Where(t => t.RecordId == recordId).ToListAsync();
+
+            return new TransactionSummaryDto
+            {
+                TotalTransactions = transactions.Count,
+                TotalAmount = transactions.Sum(t => t.TransactionValue)
+            };
+        }
+
+        [HttpGet("report/{recordId}")]
+        public async Task<ActionResult<IEnumerable<TransactionReportDto>>> GetTransactionReport(int recordId)
+        {
+            var record = await _context.Records.Include(r => r.Transactions).FirstOrDefaultAsync(r => r.Id == recordId);
+            if (record == null) return NotFound("Record not found");
+
+            var report = record.Transactions.Select(t => new TransactionReportDto
+            {
+                TransactionId = t.Id,
+                Category = t.Category,
+                Value = t.TransactionValue,
+                Date = t.TimeOfTransaction
+            }).ToList();
+
+            return Ok(report);
+        }
+
+        private int GetRecordId()
+        {
+            var recordIdClaim = User.FindFirst("RecordId");
+            if (recordIdClaim == null)
+            {
+                throw new NullReferenceException("RecordId claim is missing.");
+            }
+            return int.Parse(recordIdClaim.Value);
         }
     }
 }

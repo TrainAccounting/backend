@@ -32,12 +32,33 @@ namespace Trainacc.Controllers
             {
                 FIO = userDto.FIO,
                 Email = userDto.Email,
-                Phone = userDto.Phone,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(userDto.Password),
-                Role = "User"
+                Role = userDto.Role
             };
-
             _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+
+            var record = new Record
+            {
+                NameOfRecord = "Default Record",
+                DateOfCreation = DateTime.UtcNow,
+                UserId = user.Id
+            };
+            _context.Records.Add(record);
+            await _context.SaveChangesAsync();
+
+            record.UserId = user.Id;
+            _context.Records.Update(record);
+            await _context.SaveChangesAsync();
+
+            var account = new Account
+            {
+                NameOfAccount = "Default Account",
+                AccountValue = 0,
+                DateOfOpening = DateTime.UtcNow,
+                RecordId = record.UserId
+            };
+            _context.Accounts.Add(account);
             await _context.SaveChangesAsync();
 
             var token = _tokenService.GenerateToken(user);

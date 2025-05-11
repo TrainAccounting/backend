@@ -24,7 +24,7 @@ namespace Trainacc.Models
     public class UserCreateDto
     {
         [Required]
-        [StringLength(100)]
+        [StringLength(100, MinimumLength = 3)]
         public string FIO { get; set; } = null!;
 
         [Required]
@@ -32,10 +32,12 @@ namespace Trainacc.Models
         public string Email { get; set; } = null!;
 
         [Phone]
+        [StringLength(10, MinimumLength = 10)]
         public string? Phone { get; set; }
 
         [Required]
-        [StringLength(100, MinimumLength = 6)]
+        [StringLength(100, MinimumLength = 8)]
+        [DataType(DataType.Password)]
         public string Password { get; set; } = null!;
 
         public string? Role { get; set; }
@@ -81,7 +83,7 @@ namespace Trainacc.Models
     {
         [Required]
         public string NameOfRecord { get; set; } = null!;
-        public int UserId { get; set; }
+        //public int UserId { get; set; } // Deleted
     }
 
     public class RecordSummaryDto
@@ -119,6 +121,9 @@ namespace Trainacc.Models
         public int Id { get; set; }
         public string? Category { get; set; }
         public decimal TransactionValue { get; set; }
+        public int TotalTransactions { get; set; }
+        public decimal TotalValue { get; set; }
+        public decimal TotalAmount { get; set; }
     }
 
     public class RestrictionDto
@@ -127,6 +132,9 @@ namespace Trainacc.Models
         public string? Category { get; set; }
         public decimal RestrictionValue { get; set; }
         public decimal MoneySpent { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
+        public bool IsActive { get; set; }
     }
 
     public class DepositDto
@@ -139,7 +147,8 @@ namespace Trainacc.Models
         public int PeriodOfPayment { get; set; }
         public decimal InterestRate { get; set; }
         public bool Capitalisation { get; set; }
-        public PaymentType PayType { get; set; }
+        public decimal Amount { get; set; }
+        public PaymentType PayType { get; set; } = 0;
     }
 
     public class CreditDto
@@ -150,7 +159,8 @@ namespace Trainacc.Models
         public DateTime DateOfOpening { get; set; }
         public int PeriodOfPayment { get; set; }
         public decimal InterestRate { get; set; }
-        public PaymentType PayType { get; set; }
+        public decimal Amount { get; set; }
+        public PaymentType PayType { get; set; } = 0;
     }
 
     public class UserLoginDto
@@ -180,10 +190,8 @@ namespace Trainacc.Models
     {
         [Required] public string NameOfCredit { get; set; }
         [Required] public decimal CreditCurrentValue { get; set; }
-        [Required] public int RecordId { get; set; }
         [Required] public int PeriodOfPayment { get; set; }
         [Required] public decimal InterestRate { get; set; }
-        [Required] public PaymentType PayType { get; set; }
     }
 
     public class CreditUpdateDto
@@ -192,18 +200,16 @@ namespace Trainacc.Models
         public decimal? CreditCurrentValue { get; set; }
         public int? PeriodOfPayment { get; set; }
         public decimal? InterestRate { get; set; }
-        public PaymentType? PayType { get; set; }
+        public PaymentType PayType { get; set; } = 0;
     }
 
     public class DepositCreateDto
     {
         [Required] public string NameOfDeposit { get; set; }
         [Required] public decimal DepositStartValue { get; set; }
-        [Required] public int RecordId { get; set; }
         [Required] public int PeriodOfPayment { get; set; }
         [Required] public decimal InterestRate { get; set; }
         [Required] public bool Capitalisation { get; set; }
-        [Required] public PaymentType PayType { get; set; }
     }
 
     public class DepositUpdateDto
@@ -213,7 +219,7 @@ namespace Trainacc.Models
         public int? PeriodOfPayment { get; set; }
         public decimal? InterestRate { get; set; }
         public bool? Capitalisation { get; set; }
-        public PaymentType? PayType { get; set; }
+        public PaymentType PayType { get; set; } = 0;
     }
 
     public class RestrictionCreateDto
@@ -240,5 +246,77 @@ namespace Trainacc.Models
     {
         public string? Category { get; set; }
         public decimal? TransactionValue { get; set; }
+    }
+
+    public class DepositSummaryDto
+    {
+        public int RecordId { get; set; }
+        public int TotalDeposits { get; set; }
+        public decimal TotalValue { get; set; }
+        public int ActiveDeposits { get; set; }
+    }
+
+    public class DepositReportDto
+    {
+        public int DepositId { get; set; }
+        public string Name { get; set; }
+        public decimal CurrentValue { get; set; }
+        public decimal InterestRate { get; set; }
+        public int PeriodOfPayment { get; set; }
+    }
+
+    public class AccountReportDto
+    {
+        public string AccountName { get; set; }
+        public int TotalTransactions { get; set; }
+        public decimal TotalValue { get; set; }
+    }
+
+    public class RestrictionSummaryDto
+    {
+        public int AccountId { get; set; }
+        public int TotalRestrictions { get; set; }
+        public decimal TotalSpent { get; set; }
+        public int ActiveRestrictions { get; set; }
+    }
+
+    public class RestrictionReportDto
+    {
+        public int RestrictionId { get; set; }
+        public string Category { get; set; }
+        public decimal RestrictionValue { get; set; }
+        public decimal MoneySpent { get; set; }
+    }
+
+    public class CreditSummaryDto
+    {
+        public int AccountId { get; set; }
+        public int TotalCredits { get; set; }
+        public decimal TotalDebt { get; set; }
+        public int ActiveCredits { get; set; }
+    }
+
+    public class CreditReportDto
+    {
+        public int CreditId { get; set; }
+        public string Name { get; set; }
+        public decimal CurrentValue { get; set; }
+        public decimal InterestRate { get; set; }
+        public int PeriodOfPayment { get; set; }
+    }
+
+    public class TransactionReportDto
+    {
+        public int TransactionId { get; set; }
+        public string Category { get; set; }
+        public decimal Value { get; set; }
+        public DateTime Date { get; set; }
+    }
+
+    public class SubscriptionDto
+    {
+        public int Id { get; set; }
+        public DateTime StartDate { get; set; }
+        public DateTime EndDate { get; set; }
     }
 }

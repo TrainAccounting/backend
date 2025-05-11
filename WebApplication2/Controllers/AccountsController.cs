@@ -41,6 +41,7 @@ namespace Trainacc.Controllers
         [HttpPost]
         public async Task<ActionResult<AccountDto>> CreateAccount(AccountCreateDto dto)
         {
+            var recordId = GetRecordId();
             var record = await _context.Records.FindAsync(dto.RecordId);
             if (record == null) return NotFound("Record not found");
 
@@ -86,6 +87,44 @@ namespace Trainacc.Controllers
             _context.Accounts.Remove(account);
             await _context.SaveChangesAsync();
             return NoContent();
+        }
+
+        [HttpGet("balance")]
+        public async Task<ActionResult<decimal>> GetTotalBalance()
+        {
+            var recordId = GetRecordId();
+            var record = await _context.Records.Include(r => r.Accounts).FirstOrDefaultAsync(r => r.Id == recordId);
+            if (record == null)
+            {
+                return NotFound("Record not found for the current user.");
+            }
+            return record.Accounts.Sum(a => a.Balance);
+        }
+
+        [HttpGet("report/{recordId}")]
+        public async Task<ActionResult<IEnumerable<AccountReportDto>>> GetAccountReport(int recordId)
+        {
+            var record = await _context.Records.Include(r => r.Accounts).ThenInclude(r => r.Transactions).FirstOrDefaultAsync(r => r.Id == recordId);
+            if (record == null) return NotFound("Record not found");
+
+            var report = record.Accounts.Select(a => new AccountReportDto
+            {
+                AccountName = a.NameOfAccount,
+                TotalTransactions = a.Transactions.Count,
+                TotalValue = a.Transactions.Sum(t => t.TransactionValue)
+            }).ToList();
+
+            return Ok(report);
+        }
+
+        private int GetRecordId()
+        {
+            var recordIdClaim = User.FindFirst("RecordId");
+            if (recordIdClaim == null)
+            {
+                throw new NullReferenceException("RecordId claim is missing.");
+            }
+            return int.Parse(recordIdClaim.Value);
         }
     }
 }
