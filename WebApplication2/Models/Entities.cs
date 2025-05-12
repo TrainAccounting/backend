@@ -8,7 +8,11 @@ namespace Trainacc.Models
         public string? FIO { get; set; }
         public string? Email { get; set; }
         public string? Phone { get; set; }
-        //public List<Record> Records { get; set; } = new List<Record>();
+        [Required]
+        public string PasswordHash { get; set; } = null!;
+        [Required]
+        public string Role { get; set; } = "User";
+        public List<Record> Records { get; set; } = new List<Record>();
     }
     public class Record
     {
@@ -26,30 +30,41 @@ namespace Trainacc.Models
     }
     public class Restriction
     {
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
         public string? Category { get; set; }
         public decimal RestrictionValue { get; set; }
         public decimal MoneySpent { get; set; }
         public int RecordId { get; set; }
+        public string? Name { get; set; }
+        public string? Description { get; set; }
+        public bool IsActive { get; set; }
+        public Record? Record { get; set; }
     }
     public class Account
     {
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
         public string? NameOfAccount { get; set; }
-        public decimal AccountValue { get; set; }
         public DateTime DateOfOpening { get; set; }
         public int RecordId { get; set; }
+        public ICollection<Transactions> Transactions { get; set; } = new List<Transactions>();
+        public decimal Balance { get; set; }
+        public Record? Record { get; set; }
     }
     public class Transactions
     {
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
         public string? Category { get; set; }
         public decimal TransactionValue { get; set; }
         public DateTime TimeOfTransaction { get; set; }
         public int RecordId { get; set; }
+        public Record? Record { get; set; }
     }
     public class Deposit
     {
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
         public string? NameOfDeposit { get; set; }
         public decimal DepositStartValue { get; set; }
@@ -59,10 +74,14 @@ namespace Trainacc.Models
         public decimal InterestRate { get; set; }
         public bool Capitalisation { get; set; }
         public PaymentType PayType { get; set; }
+        public decimal Amount { get; set; }
         public int RecordId { get; set; }
+        public bool IsActive { get; set; }
+        public Record? Record { get; set; }
     }
     public class Credit
     {
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
         public string? NameOfCredit { get; set; }
         public decimal CreditCurrentValue { get; set; }
@@ -70,13 +89,14 @@ namespace Trainacc.Models
         public int PeriodOfPayment { get; set; }
         public decimal InterestRate { get; set; }
         public PaymentType PayType { get; set; }
+        public decimal Amount { get; set; }
         public int RecordId { get; set; }
+        public bool IsActive { get; set; }
+        public Record? Record { get; set; }
     }
 
     public enum PaymentType
     {
-        Monthly,
-        Quarterly,
-        Once
+        Monthly
     }
 }
