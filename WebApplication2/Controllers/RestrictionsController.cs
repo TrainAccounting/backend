@@ -27,7 +27,10 @@ namespace Trainacc.Controllers
                     Id = r.Id,
                     Category = r.Category,
                     RestrictionValue = r.RestrictionValue,
-                    MoneySpent = r.MoneySpent
+                    MoneySpent = r.MoneySpent,
+                    Name = r.Name,
+                    Description = r.Description,
+                    IsActive = r.IsActive
                 })
                 .ToListAsync();
 
@@ -47,23 +50,56 @@ namespace Trainacc.Controllers
                 .ToListAsync();
         }
 
+        [HttpGet("{id}")]
+        public async Task<ActionResult<RestrictionDto>> GetRestriction(int id)
+        {
+            var restriction = await _context.Restrictions.FindAsync(id);
+            if (restriction == null) return NotFound();
+            return new RestrictionDto
+            {
+                Id = restriction.Id,
+                Category = restriction.Category ?? string.Empty,
+                RestrictionValue = restriction.RestrictionValue,
+                MoneySpent = restriction.MoneySpent,
+                Name = restriction.Name ?? string.Empty,
+                Description = restriction.Description ?? string.Empty,
+                IsActive = restriction.IsActive
+            };
+        }
+
         [HttpPost]
         public async Task<IActionResult> CreateRestriction([FromBody] RestrictionDto dto)
         {
             var recordId = GetRecordId();
+            var sum = await _context.Transactions
+                .Where(t => t.RecordId == recordId && t.Category == dto.Category)
+                .SumAsync(t => t.TransactionValue);
+            var moneySpent = Math.Abs(sum);
 
             var restriction = new Restriction
             {
                 Name = dto.Name,
                 Description = dto.Description,
                 IsActive = dto.IsActive,
-                RecordId = recordId
+                RecordId = recordId,
+                Category = dto.Category,
+                RestrictionValue = dto.RestrictionValue,
+                MoneySpent = moneySpent
             };
 
             _context.Restrictions.Add(restriction);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetAllRestrictions), new { id = restriction.Id }, dto);
+            return CreatedAtAction(nameof(GetAllRestrictions), new { id = restriction.Id }, new RestrictionDto
+            {
+                Id = restriction.Id,
+                Category = restriction.Category,
+                RestrictionValue = restriction.RestrictionValue,
+                MoneySpent = restriction.MoneySpent,
+                Name = restriction.Name,
+                Description = restriction.Description,
+                IsActive = restriction.IsActive
+            });
         }
 
         [HttpPut("{id}")]
@@ -75,8 +111,27 @@ namespace Trainacc.Controllers
             restriction.Category = dto.Category ?? restriction.Category;
             restriction.RestrictionValue = dto.RestrictionValue ?? restriction.RestrictionValue;
 
+            var restrictions = await _context.Restrictions
+                .Where(r => r.RecordId == restriction.RecordId && r.Category == restriction.Category)
+                .ToListAsync();
+            var sum = await _context.Transactions
+                .Where(t => t.RecordId == restriction.RecordId && t.Category == restriction.Category)
+                .SumAsync(t => t.TransactionValue);
+            var moneySpent = Math.Abs(sum);
+            foreach (var r in restrictions)
+                r.MoneySpent = moneySpent;
+
             await _context.SaveChangesAsync();
-            return NoContent();
+            return Ok(new RestrictionDto
+            {
+                Id = restriction.Id,
+                Category = restriction.Category ?? string.Empty,
+                RestrictionValue = restriction.RestrictionValue,
+                MoneySpent = restriction.MoneySpent,
+                Name = restriction.Name ?? string.Empty,
+                Description = restriction.Description ?? string.Empty,
+                IsActive = restriction.IsActive
+            });
         }
 
         [HttpDelete("{id}")]
@@ -84,8 +139,19 @@ namespace Trainacc.Controllers
         {
             var restriction = await _context.Restrictions.FindAsync(id);
             if (restriction == null) return NotFound();
-
+            var recordId = restriction.RecordId;
+            var category = restriction.Category;
             _context.Restrictions.Remove(restriction);
+            await _context.SaveChangesAsync();
+            var restrictions = await _context.Restrictions
+                .Where(r => r.RecordId == recordId && r.Category == category)
+                .ToListAsync();
+            var sum = await _context.Transactions
+                .Where(t => t.RecordId == recordId && t.Category == category)
+                .SumAsync(t => t.TransactionValue);
+            var moneySpent = Math.Abs(sum);
+            foreach (var r in restrictions)
+                r.MoneySpent = moneySpent;
             await _context.SaveChangesAsync();
             return NoContent();
         }
@@ -98,7 +164,9 @@ namespace Trainacc.Controllers
 
             return new RestrictionSummaryDto
             {
+                AccountId = recordId,
                 TotalRestrictions = restrictions.Count,
+                TotalSpent = restrictions.Sum(r => r.MoneySpent),
                 ActiveRestrictions = restrictions.Count(r => r.IsActive)
             };
         }

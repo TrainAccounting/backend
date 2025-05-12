@@ -33,7 +33,7 @@ namespace Trainacc.Controllers
                 FIO = userDto.FIO,
                 Email = userDto.Email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(userDto.Password),
-                Role = userDto.Role
+                Role = userDto.Role ?? string.Empty
             };
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
@@ -54,20 +54,20 @@ namespace Trainacc.Controllers
             var account = new Account
             {
                 NameOfAccount = "Default Account",
-                AccountValue = 0,
+                Balance = 0,
                 DateOfOpening = DateTime.UtcNow,
                 RecordId = record.UserId
             };
             _context.Accounts.Add(account);
             await _context.SaveChangesAsync();
 
-            var token = _tokenService.GenerateToken(user);
+            var token = _tokenService.GenerateToken(user, record.Id);
 
             return new UserAuthDto
             {
                 Id = user.Id,
-                Email = user.Email,
-                Role = user.Role,
+                Email = user.Email ?? string.Empty,
+                Role = user.Role ?? string.Empty,
                 Token = token
             };
         }
@@ -79,13 +79,15 @@ namespace Trainacc.Controllers
             if (user == null || !BCrypt.Net.BCrypt.Verify(loginDto.Password, user.PasswordHash))
                 return Unauthorized("Invalid email or password.");
 
-            var token = _tokenService.GenerateToken(user);
+            var record = await _context.Records.FirstOrDefaultAsync(r => r.UserId == user.Id);
+            int? recordId = record?.Id;
+            var token = _tokenService.GenerateToken(user, recordId);
 
             return new UserAuthDto
             {
                 Id = user.Id,
-                Email = user.Email,
-                Role = user.Role,
+                Email = user.Email ?? string.Empty,
+                Role = user.Role ?? string.Empty,
                 Token = token
             };
         }

@@ -24,8 +24,8 @@ namespace Trainacc.Controllers
             {
                 Id = a.Id,
                 NameOfAccount = a.NameOfAccount,
-                AccountValue = a.AccountValue,
-                DateOfOpening = a.DateOfOpening
+                DateOfOpening = a.DateOfOpening,
+                Balance = a.Balance
             }).ToListAsync();
 
         [HttpGet("by-record/{recordId}")]
@@ -34,9 +34,23 @@ namespace Trainacc.Controllers
             {
                 Id = a.Id,
                 NameOfAccount = a.NameOfAccount,
-                AccountValue = a.AccountValue,
-                DateOfOpening = a.DateOfOpening
+                DateOfOpening = a.DateOfOpening,
+                Balance = a.Balance
             }).ToListAsync();
+
+        [HttpGet("{id}")]
+        public async Task<ActionResult<AccountDto>> GetAccount(int id)
+        {
+            var account = await _context.Accounts.FindAsync(id);
+            if (account == null) return NotFound();
+            return new AccountDto
+            {
+                Id = account.Id,
+                NameOfAccount = account.NameOfAccount ?? string.Empty,
+                DateOfOpening = account.DateOfOpening,
+                Balance = account.Balance
+            };
+        }
 
         [HttpPost]
         public async Task<ActionResult<AccountDto>> CreateAccount(AccountCreateDto dto)
@@ -48,9 +62,9 @@ namespace Trainacc.Controllers
             var account = new Account
             {
                 NameOfAccount = dto.NameOfAccount,
-                AccountValue = dto.AccountValue,
                 DateOfOpening = DateTime.UtcNow,
-                RecordId = dto.RecordId
+                RecordId = dto.RecordId,
+                Balance = 0
             };
 
             _context.Accounts.Add(account);
@@ -60,8 +74,8 @@ namespace Trainacc.Controllers
             {
                 Id = account.Id,
                 NameOfAccount = account.NameOfAccount,
-                AccountValue = account.AccountValue,
-                DateOfOpening = account.DateOfOpening
+                DateOfOpening = account.DateOfOpening,
+                Balance = account.Balance
             });
         }
 
@@ -72,10 +86,15 @@ namespace Trainacc.Controllers
             if (account == null) return NotFound();
 
             account.NameOfAccount = dto.NameOfAccount ?? account.NameOfAccount;
-            account.AccountValue = dto.AccountValue ?? account.AccountValue;
 
             await _context.SaveChangesAsync();
-            return NoContent();
+            return Ok(new AccountDto
+            {
+                Id = account.Id,
+                NameOfAccount = account.NameOfAccount ?? string.Empty,
+                DateOfOpening = account.DateOfOpening,
+                Balance = account.Balance
+            });
         }
 
         [HttpDelete("{id}")]
@@ -109,7 +128,7 @@ namespace Trainacc.Controllers
 
             var report = record.Accounts.Select(a => new AccountReportDto
             {
-                AccountName = a.NameOfAccount,
+                AccountName = a.NameOfAccount ?? string.Empty,
                 TotalTransactions = a.Transactions.Count,
                 TotalValue = a.Transactions.Sum(t => t.TransactionValue)
             }).ToList();

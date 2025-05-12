@@ -32,7 +32,9 @@ namespace Trainacc.Controllers
                     PeriodOfPayment = d.PeriodOfPayment,
                     InterestRate = d.InterestRate,
                     Capitalisation = d.Capitalisation,
-                    PayType = d.PayType
+                    Amount = d.Amount,
+                    PayType = d.PayType,
+                    IsActive = d.IsActive
                 })
                 .ToListAsync();
 
@@ -71,12 +73,28 @@ namespace Trainacc.Controllers
                 PeriodOfPayment = dto.PeriodOfPayment,
                 InterestRate = dto.InterestRate,
                 Capitalisation = dto.Capitalisation,
+                Amount = dto.Amount,
                 PayType = dto.PayType,
+                IsActive = dto.IsActive,
                 RecordId = recordId
             };
-
             _context.Deposits.Add(deposit);
             await _context.SaveChangesAsync();
+
+            var account = await _context.Accounts.FirstOrDefaultAsync(a => a.RecordId == recordId);
+            if (account != null && deposit.Amount > 0)
+            {
+                var transaction = new Transactions
+                {
+                    Category = "Deposit",
+                    TransactionValue = deposit.Amount,
+                    TimeOfTransaction = DateTime.UtcNow,
+                    RecordId = recordId
+                };
+                _context.Transactions.Add(transaction);
+                account.Balance += Math.Abs(deposit.Amount);
+                await _context.SaveChangesAsync();
+            }
 
             return CreatedAtAction(nameof(GetAllDeposits), new { id = deposit.Id }, dto);
         }
@@ -108,7 +126,7 @@ namespace Trainacc.Controllers
             return NoContent();
         }
 
-       [HttpGet("summary")]
+        [HttpGet("summary")]
         public async Task<ActionResult<DepositSummaryDto>> GetDepositSummary()
         {
             var recordId = GetRecordId();

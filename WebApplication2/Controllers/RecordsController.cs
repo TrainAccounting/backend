@@ -100,7 +100,7 @@ namespace Trainacc.Controllers
                 {
                     Id = a.Id,
                     NameOfAccount = a.NameOfAccount,
-                    AccountValue = a.AccountValue
+                    Balance = a.Balance
                 }).ToList(),
                 Transactions = record.Transactions.Select(t => new TransactionSummaryDto
                 {

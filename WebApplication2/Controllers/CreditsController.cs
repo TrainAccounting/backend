@@ -25,7 +25,12 @@ namespace Trainacc.Controllers
                 .Select(c => new CreditDto
                 {
                     Id = c.Id,
+                    NameOfCredit = c.NameOfCredit,
                     CreditCurrentValue = c.CreditCurrentValue,
+                    DateOfOpening = c.DateOfOpening,
+                    PeriodOfPayment = c.PeriodOfPayment,
+                    InterestRate = c.InterestRate,
+                    Amount = c.Amount,
                     PayType = c.PayType
                 })
                 .ToListAsync();
@@ -53,16 +58,36 @@ namespace Trainacc.Controllers
         public async Task<IActionResult> CreateCredit([FromBody] CreditDto dto)
         {
             var recordId = GetRecordId();
-            
             var credit = new Credit
             {
+                NameOfCredit = dto.NameOfCredit,
                 CreditCurrentValue = dto.CreditCurrentValue,
+                DateOfOpening = dto.DateOfOpening,
+                PeriodOfPayment = dto.PeriodOfPayment,
+                InterestRate = dto.InterestRate,
+                Amount = dto.Amount,
                 PayType = dto.PayType,
+                IsActive = dto.IsActive,
                 RecordId = recordId
             };
 
             _context.Credits.Add(credit);
             await _context.SaveChangesAsync();
+
+            var account = await _context.Accounts.FirstOrDefaultAsync(a => a.RecordId == recordId);
+            if (account != null && credit.Amount > 0)
+            {
+                var transaction = new Transactions
+                {
+                    Category = "Credit",
+                    TransactionValue = -Math.Abs(credit.Amount),
+                    TimeOfTransaction = DateTime.UtcNow,
+                    RecordId = recordId
+                };
+                _context.Transactions.Add(transaction);
+                account.Balance -= Math.Abs(credit.Amount);
+                await _context.SaveChangesAsync();
+            }
 
             return CreatedAtAction(nameof(GetAllCredits), new { id = credit.Id }, dto);
         }
@@ -96,7 +121,7 @@ namespace Trainacc.Controllers
         [HttpGet("summary")]
         public async Task<ActionResult<CreditSummaryDto>> GetCreditSummary()
         {
-            var recordId = GetRecordId(); 
+            var recordId = GetRecordId();
             var credits = await _context.Credits.Where(c => c.RecordId == recordId).ToListAsync();
 
             return new CreditSummaryDto
