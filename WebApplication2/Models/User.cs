@@ -1,10 +1,10 @@
 ﻿namespace Trainacc.Models
 {
-    public class User
+    public class UserAuth
     {
         public int Id { get; set; }
-        public required string FullName { get; set; }
-        public required string Port { get; set; }
-        public required string NumberType { get; set; }
+        public string Username { get; set; }
+        public string Password { get; set; }
+        public string Role { get; set; }
     }
 }
