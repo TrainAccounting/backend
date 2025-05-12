@@ -1,3 +1,3 @@
 # Trainacc
 ## Backend проекта
-![ha-ha-the-simpsons](https://github.com/user-attachments/assets/fafa8a6b-f858-4a06-a029-90575d1b13bb)
+![wizard-cat-cat-ai](https://github.com/user-attachments/assets/e9830205-d8fd-40e6-9cc6-a3196cda8bbf)
