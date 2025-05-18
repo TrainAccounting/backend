@@ -47,7 +47,7 @@ namespace Trainacc.Models
     public class DepositReportDto
     {
         public int DepositId { get; set; }
-        public string Name { get; set; }
+        public required string Name { get; set; }
         public decimal CurrentValue { get; set; }
         public decimal InterestRate { get; set; }
         public int PeriodOfPayment { get; set; }

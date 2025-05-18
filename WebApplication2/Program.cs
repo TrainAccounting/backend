@@ -25,7 +25,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? string.Empty)),
             RoleClaimType = ClaimTypes.Role
         };
     });
@@ -78,6 +78,14 @@ builder.Services.AddScoped<ETagFilter>();
 builder.Services.AddScoped<ValidateModelAttribute>();
 //builder.Services.AddScoped<RoleBasedAuthFilter>(_ =>
 //    new RoleBasedAuthFilter("Admin"));
+builder.Services.AddScoped<Trainacc.Services.UsersService>();
+builder.Services.AddScoped<Trainacc.Services.AccountsService>();
+builder.Services.AddScoped<Trainacc.Services.CreditsService>();
+builder.Services.AddScoped<Trainacc.Services.DepositsService>();
+builder.Services.AddScoped<Trainacc.Services.RestrictionsService>();
+builder.Services.AddScoped<Trainacc.Services.TransactionsService>();
+builder.Services.AddScoped<Trainacc.Services.RecordsService>();
+builder.Services.AddScoped<Trainacc.Services.AuthService>();
 
 builder.Services.AddCors(option =>
 {

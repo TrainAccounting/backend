@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Trainacc.Data;
-using Trainacc.Models;
 using Trainacc.Services;
+using Trainacc.Models;
 using Trainacc.Filters;
 
 namespace Trainacc.Controllers
@@ -13,99 +13,56 @@ namespace Trainacc.Controllers
     [ServiceFilter(typeof(ETagFilter))]
     public class AuthController : ControllerBase
     {
-        private readonly AppDbContext _context;
-        private readonly TokenService _tokenService;
-
-        public AuthController(AppDbContext context, TokenService tokenService)
+        private readonly AuthService _authService;
+        public AuthController(AuthService authService)
         {
-            _context = context;
-            _tokenService = tokenService;
+            _authService = authService;
         }
 
         [HttpPost("register")]
         public async Task<ActionResult<UserAuthDto>> Register(UserCreateDto userDto)
         {
-            if (await _context.Users.AnyAsync(u => u.Email == userDto.Email))
-                return BadRequest("Email already exists.");
-
-            var user = new Users
+            try
             {
-                FIO = userDto.FIO,
-                Email = userDto.Email,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(userDto.Password),
-                Role = userDto.Role ?? string.Empty
-            };
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
-
-            var record = new Record
-            {
-                NameOfRecord = "Default Record",
-                DateOfCreation = DateTime.UtcNow,
-                UserId = user.Id
-            };
-            _context.Records.Add(record);
-            await _context.SaveChangesAsync();
-
-            record.UserId = user.Id;
-            _context.Records.Update(record);
-            await _context.SaveChangesAsync();
-
-            var account = new Account
-            {
-                NameOfAccount = "Default Account",
-                Balance = 0,
-                DateOfOpening = DateTime.UtcNow,
-                RecordId = record.UserId
-            };
-            _context.Accounts.Add(account);
-            await _context.SaveChangesAsync();
-
-            var token = _tokenService.GenerateToken(user, record.Id);
-
-            Response.Cookies.Append("AuthToken", token, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Strict,
-                Expires = DateTimeOffset.UtcNow.AddHours(1)
-            });
-
-            return new UserAuthDto
-            {
-                Id = user.Id,
-                Email = user.Email ?? string.Empty,
-                Role = user.Role ?? string.Empty,
-                Token = token
-            };
+                var (result, error) = await _authService.RegisterAsync(userDto);
+                if (error != null) return BadRequest(error);
+                if (result == null) return Problem();
+                if (!string.IsNullOrEmpty(result.Token))
+                {
+                    Response.Cookies.Append("AuthToken", result.Token, new CookieOptions
+                    {
+                        HttpOnly = true,
+                        Secure = true,
+                        SameSite = SameSiteMode.Strict,
+                        Expires = DateTimeOffset.UtcNow.AddHours(1)
+                    });
+                }
+                return result;
+            }
+            catch { return Problem(); }
         }
 
         [HttpPost("login")]
         public async Task<ActionResult<UserAuthDto>> Login([FromBody] UserLoginDto loginDto)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == loginDto.Email);
-            if (user == null || !BCrypt.Net.BCrypt.Verify(loginDto.Password, user.PasswordHash))
-                return Unauthorized("Invalid email or password.");
-
-            var record = await _context.Records.FirstOrDefaultAsync(r => r.UserId == user.Id);
-            int? recordId = record?.Id;
-            var token = _tokenService.GenerateToken(user, recordId);
-
-            Response.Cookies.Append("AuthToken", token, new CookieOptions
+            try
             {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Strict,
-                Expires = DateTimeOffset.UtcNow.AddHours(1)
-            });
-
-            return new UserAuthDto
-            {
-                Id = user.Id,
-                Email = user.Email ?? string.Empty,
-                Role = user.Role ?? string.Empty,
-                Token = token
-            };
+                var (result, error) = await _authService.LoginAsync(loginDto);
+                if (error != null) return Unauthorized(error);
+                if (result == null) return Problem();
+                if (!string.IsNullOrEmpty(result.Token))
+                {
+                    Response.Cookies.Append("AuthToken", result.Token, new CookieOptions
+                    {
+                        HttpOnly = true,
+                        Secure = true,
+                        SameSite = SameSiteMode.Strict,
+                        Expires = DateTimeOffset.UtcNow.AddHours(1)
+                    });
+                }
+                return result;
+            }
+            catch { return Problem(); }
         }
     }
 }

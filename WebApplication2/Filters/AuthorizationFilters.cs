@@ -11,6 +11,7 @@ namespace Trainacc.Filters
 
         public async Task OnAuthorizationAsync(AuthorizationFilterContext context)
         {
+            await Task.CompletedTask;
             //var user = context.HttpContext.User;
             //if (!user.IsInRole(_requiredRole))
             //{

@@ -1,9 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Trainacc.Data;
-using Trainacc.Models;
 using Trainacc.Filters;
+using Trainacc.Models;
+using Trainacc.Services;
 
 namespace Trainacc.Controllers
 {
@@ -14,76 +13,61 @@ namespace Trainacc.Controllers
     [ServiceFilter(typeof(ETagFilter))]
     public class TransactionsController : ControllerBase
     {
-        private readonly AppDbContext _context;
-
-        public TransactionsController(AppDbContext context) => _context = context;
+        private readonly TransactionsService _service;
+        public TransactionsController(TransactionsService service) => _service = service;
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<TransactionDto>>> GetTransactions()
         {
-            return await _context.Transactions.Select(t => new TransactionDto
-            {
-                Id = t.Id,
-                Category = t.Category,
-                TransactionValue = t.TransactionValue,
-                TimeOfTransaction = t.TimeOfTransaction
-            }).ToListAsync();
+            try { return await _service.GetTransactionsAsync(); }
+            catch { return Problem(); }
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<TransactionDto>> GetTransaction(int id)
         {
-            var transaction = await _context.Transactions.FindAsync(id);
-            if (transaction == null) return NotFound();
-            return new TransactionDto
+            try
             {
-                Id = transaction.Id,
-                Category = transaction.Category,
-                TransactionValue = transaction.TransactionValue,
-                TimeOfTransaction = transaction.TimeOfTransaction
-            };
+                var result = await _service.GetTransactionAsync(id);
+                if (result == null) return NotFound();
+                return result;
+            }
+            catch { return Problem(); }
         }
 
         [HttpPost]
         public async Task<ActionResult<TransactionDto>> CreateTransaction(TransactionCreateDto dto)
         {
-            var transaction = new Transactions
+            try
             {
-                Category = dto.Category,
-                TransactionValue = dto.TransactionValue,
-                TimeOfTransaction = DateTime.UtcNow,
-                RecordId = dto.RecordId
-            };
-            _context.Transactions.Add(transaction);
-            await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetTransaction), new { id = transaction.Id }, new TransactionDto
-            {
-                Id = transaction.Id,
-                Category = transaction.Category,
-                TransactionValue = transaction.TransactionValue,
-                TimeOfTransaction = transaction.TimeOfTransaction
-            });
+                var created = await _service.CreateTransactionAsync(dto);
+                return CreatedAtAction(nameof(GetTransaction), new { id = created.Id }, created);
+            }
+            catch { return Problem(); }
         }
 
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateTransaction(int id, TransactionUpdateDto dto)
         {
-            var transaction = await _context.Transactions.FindAsync(id);
-            if (transaction == null) return NotFound();
-            transaction.Category = dto.Category ?? transaction.Category;
-            transaction.TransactionValue = dto.TransactionValue ?? transaction.TransactionValue;
-            await _context.SaveChangesAsync();
-            return NoContent();
+            try
+            {
+                var ok = await _service.UpdateTransactionAsync(id, dto);
+                if (!ok) return NotFound();
+                return NoContent();
+            }
+            catch { return Problem(); }
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTransaction(int id)
         {
-            var transaction = await _context.Transactions.FindAsync(id);
-            if (transaction == null) return NotFound();
-            _context.Transactions.Remove(transaction);
-            await _context.SaveChangesAsync();
-            return NoContent();
+            try
+            {
+                var ok = await _service.DeleteTransactionAsync(id);
+                if (!ok) return NotFound();
+                return NoContent();
+            }
+            catch { return Problem(); }
         }
     }
 }
