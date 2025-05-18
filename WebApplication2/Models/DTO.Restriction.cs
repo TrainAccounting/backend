@@ -1,9 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 
 namespace Trainacc.Models
-{
-    // DTO для ограничений (Restrictions)
-    public class RestrictionDto
+{    public class RestrictionDto
     {
         public int Id { get; set; }
         public string? Category { get; set; }

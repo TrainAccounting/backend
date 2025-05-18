@@ -1,9 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 
 namespace Trainacc.Models
-{
-    // DTO для пользователей
-    public class UserDto
+{    public class UserDto
     {
         public int Id { get; set; }
         public string? FIO { get; set; }

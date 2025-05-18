@@ -2,7 +2,6 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Trainacc.Models
 {
-    // DTO для кредитов (Credits)
     public class CreditDto
     {
         public int Id { get; set; }

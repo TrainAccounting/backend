@@ -1,9 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 
 namespace Trainacc.Models
-{
-    // DTO для транзакций (Transactions)
-    public class TransactionDto
+{    public class TransactionDto
     {
         public int Id { get; set; }
         public string? Category { get; set; }
