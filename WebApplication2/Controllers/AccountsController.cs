@@ -19,24 +19,16 @@ namespace Trainacc.Controllers
         public AccountsController(AppDbContext context) => _context = context;
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<AccountDto>>> GetAccounts() =>
-            await _context.Accounts.Select(a => new AccountDto
+        public async Task<ActionResult<IEnumerable<AccountDto>>> GetAccounts()
+        {
+            return await _context.Accounts.Select(a => new AccountDto
             {
                 Id = a.Id,
                 NameOfAccount = a.NameOfAccount,
                 DateOfOpening = a.DateOfOpening,
                 Balance = a.Balance
             }).ToListAsync();
-
-        [HttpGet("by-record/{recordId}")]
-        public async Task<ActionResult<IEnumerable<AccountDto>>> GetAccountsByRecord(int recordId) =>
-            await _context.Accounts.Where(a => a.RecordId == recordId).Select(a => new AccountDto
-            {
-                Id = a.Id,
-                NameOfAccount = a.NameOfAccount,
-                DateOfOpening = a.DateOfOpening,
-                Balance = a.Balance
-            }).ToListAsync();
+        }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<AccountDto>> GetAccount(int id)
@@ -55,10 +47,8 @@ namespace Trainacc.Controllers
         [HttpPost]
         public async Task<ActionResult<AccountDto>> CreateAccount(AccountCreateDto dto)
         {
-            var recordId = GetRecordId();
             var record = await _context.Records.FindAsync(dto.RecordId);
             if (record == null) return NotFound("Record not found");
-
             var account = new Account
             {
                 NameOfAccount = dto.NameOfAccount,
@@ -66,11 +56,9 @@ namespace Trainacc.Controllers
                 RecordId = dto.RecordId,
                 Balance = 0
             };
-
             _context.Accounts.Add(account);
             await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetAccounts), new AccountDto
+            return CreatedAtAction(nameof(GetAccount), new { id = account.Id }, new AccountDto
             {
                 Id = account.Id,
                 NameOfAccount = account.NameOfAccount,
@@ -84,17 +72,9 @@ namespace Trainacc.Controllers
         {
             var account = await _context.Accounts.FindAsync(id);
             if (account == null) return NotFound();
-
             account.NameOfAccount = dto.NameOfAccount ?? account.NameOfAccount;
-
             await _context.SaveChangesAsync();
-            return Ok(new AccountDto
-            {
-                Id = account.Id,
-                NameOfAccount = account.NameOfAccount ?? string.Empty,
-                DateOfOpening = account.DateOfOpening,
-                Balance = account.Balance
-            });
+            return NoContent();
         }
 
         [HttpDelete("{id}")]
@@ -102,48 +82,9 @@ namespace Trainacc.Controllers
         {
             var account = await _context.Accounts.FindAsync(id);
             if (account == null) return NotFound();
-
             _context.Accounts.Remove(account);
             await _context.SaveChangesAsync();
             return NoContent();
-        }
-
-        [HttpGet("balance")]
-        public async Task<ActionResult<decimal>> GetTotalBalance()
-        {
-            var recordId = GetRecordId();
-            var record = await _context.Records.Include(r => r.Accounts).FirstOrDefaultAsync(r => r.Id == recordId);
-            if (record == null)
-            {
-                return NotFound("Record not found for the current user.");
-            }
-            return record.Accounts.Sum(a => a.Balance);
-        }
-
-        [HttpGet("report/{recordId}")]
-        public async Task<ActionResult<IEnumerable<AccountReportDto>>> GetAccountReport(int recordId)
-        {
-            var record = await _context.Records.Include(r => r.Accounts).ThenInclude(r => r.Transactions).FirstOrDefaultAsync(r => r.Id == recordId);
-            if (record == null) return NotFound("Record not found");
-
-            var report = record.Accounts.Select(a => new AccountReportDto
-            {
-                AccountName = a.NameOfAccount ?? string.Empty,
-                TotalTransactions = a.Transactions.Count,
-                TotalValue = a.Transactions.Sum(t => t.TransactionValue)
-            }).ToList();
-
-            return Ok(report);
-        }
-
-        private int GetRecordId()
-        {
-            var recordIdClaim = User.FindFirst("RecordId");
-            if (recordIdClaim == null)
-            {
-                throw new NullReferenceException("RecordId claim is missing.");
-            }
-            return int.Parse(recordIdClaim.Value);
         }
     }
 }

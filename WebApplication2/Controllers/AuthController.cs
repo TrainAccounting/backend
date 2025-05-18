@@ -63,6 +63,14 @@ namespace Trainacc.Controllers
 
             var token = _tokenService.GenerateToken(user, record.Id);
 
+            Response.Cookies.Append("AuthToken", token, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Strict,
+                Expires = DateTimeOffset.UtcNow.AddHours(1)
+            });
+
             return new UserAuthDto
             {
                 Id = user.Id,
@@ -73,7 +81,7 @@ namespace Trainacc.Controllers
         }
 
         [HttpPost("login")]
-        public async Task<ActionResult<UserAuthDto>> Login(UserLoginDto loginDto)
+        public async Task<ActionResult<UserAuthDto>> Login([FromBody] UserLoginDto loginDto)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == loginDto.Email);
             if (user == null || !BCrypt.Net.BCrypt.Verify(loginDto.Password, user.PasswordHash))
@@ -82,6 +90,14 @@ namespace Trainacc.Controllers
             var record = await _context.Records.FirstOrDefaultAsync(r => r.UserId == user.Id);
             int? recordId = record?.Id;
             var token = _tokenService.GenerateToken(user, recordId);
+
+            Response.Cookies.Append("AuthToken", token, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Strict,
+                Expires = DateTimeOffset.UtcNow.AddHours(1)
+            });
 
             return new UserAuthDto
             {

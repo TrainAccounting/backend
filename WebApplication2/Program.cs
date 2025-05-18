@@ -79,6 +79,16 @@ builder.Services.AddScoped<ValidateModelAttribute>();
 //builder.Services.AddScoped<RoleBasedAuthFilter>(_ =>
 //    new RoleBasedAuthFilter("Admin"));
 
+builder.Services.AddCors(option =>
+{
+    option.AddDefaultPolicy(policy =>
+    {
+        policy.WithOrigins("http://localhost:3000");
+        policy.AllowAnyHeader();
+        policy.AllowAnyMethod();
+    });
+});
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -90,6 +100,8 @@ if (app.Environment.IsDevelopment())
         c.RoutePrefix = "swagger";
     });
 }
+
+app.UseCors();
 
 app.UseHttpsRedirection();
 

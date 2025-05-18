@@ -30,8 +30,8 @@ namespace Trainacc.Controllers
                     Id = u.Id,
                     FIO = u.FIO,
                     Email = u.Email,
-                    Phone = u.Phone
-
+                    Phone = u.Phone,
+                    Role = u.Role
                 })
                 .ToListAsync();
         }
@@ -40,12 +40,7 @@ namespace Trainacc.Controllers
         public async Task<ActionResult<UserDto>> GetUser(int id)
         {
             var user = await _context.Users.FindAsync(id);
-
-            if (user == null)
-            {
-                return NotFound();
-            }
-
+            if (user == null) return NotFound();
             return new UserDto
             {
                 Id = user.Id,
@@ -56,109 +51,27 @@ namespace Trainacc.Controllers
             };
         }
 
-        [HttpGet("{id}/full")]
-        public async Task<ActionResult<UserWithRecordsDto>> GetUserWithRecords(int id)
-        {
-            var user = await _context.Users
-                .Include(u => u.Records)
-                .ThenInclude(r => r.Accounts)
-                .Include(u => u.Records)
-                .ThenInclude(r => r.Transactions)
-                .FirstOrDefaultAsync(u => u.Id == id);
-
-            if (user == null)
-            {
-                return NotFound();
-            }
-
-            return new UserWithRecordsDto
-            {
-                Id = user.Id,
-                FIO = user.FIO,
-                Email = user.Email,
-                Phone = user.Phone,
-                Records = user.Records.Select(r => new RecordSummaryDto
-                {
-                    Id = r.Id,
-                    NameOfRecord = r.NameOfRecord,
-                    DateOfCreation = r.DateOfCreation
-                }).ToList()
-            };
-        }
-
         [HttpPut("{id}")]
         [ServiceFilter(typeof(ValidateModelAttribute))]
         public async Task<IActionResult> UpdateUser(int id, UserUpdateDto userDto)
         {
             var user = await _context.Users.FindAsync(id);
-            if (user == null)
-            {
-                return NotFound();
-            }
-
-            if (!string.IsNullOrWhiteSpace(userDto.FIO))
-                user.FIO = userDto.FIO;
-
-            if (!string.IsNullOrWhiteSpace(userDto.Email))
-                user.Email = userDto.Email;
-
-            if (!string.IsNullOrWhiteSpace(userDto.Phone))
-                user.Phone = userDto.Phone;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!UserExists(id))
-                {
-                    return NotFound();
-                }
-                throw;
-            }
-
+            if (user == null) return NotFound();
+            if (!string.IsNullOrWhiteSpace(userDto.FIO)) user.FIO = userDto.FIO;
+            if (!string.IsNullOrWhiteSpace(userDto.Email)) user.Email = userDto.Email;
+            if (!string.IsNullOrWhiteSpace(userDto.Phone)) user.Phone = userDto.Phone;
+            await _context.SaveChangesAsync();
             return NoContent();
-        }
-
-        private bool UserExists(int id)
-        {
-            return _context.Users.Any(e => e.Id == id);
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(int id)
         {
             var user = await _context.Users.FindAsync(id);
-            if (user == null)
-            {
-                return NotFound();
-            }
-
+            if (user == null) return NotFound();
             _context.Users.Remove(user);
             await _context.SaveChangesAsync();
-
             return NoContent();
-        }
-
-        [HttpGet("{id}/records")]
-        public async Task<ActionResult<IEnumerable<RecordDto>>> GetUserRecords(int id)
-        {
-            var user = await _context.Users
-                .Include(u => u.Records)
-                .FirstOrDefaultAsync(u => u.Id == id);
-
-            if (user == null)
-            {
-                return NotFound();
-            }
-
-            return user.Records.Select(r => new RecordDto
-            {
-                Id = r.Id,
-                NameOfRecord = r.NameOfRecord,
-                DateOfCreation = r.DateOfCreation
-            }).ToList();
         }
     }
 }
