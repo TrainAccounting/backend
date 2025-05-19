@@ -69,5 +69,12 @@ namespace Trainacc.Controllers
             }
             catch { return Problem(); }
         }
+
+        [HttpGet("by-record/{recordId}")]
+        public async Task<ActionResult<IEnumerable<DepositDto>>> GetDepositsByRecord(int recordId)
+        {
+            try { return await _service.GetDepositsByRecordAsync(recordId); }
+            catch { return Problem(); }
+        }
     }
 }

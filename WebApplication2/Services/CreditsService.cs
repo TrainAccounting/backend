@@ -88,5 +88,24 @@ namespace Trainacc.Services
             await _context.SaveChangesAsync();
             return true;
         }
+
+        public async Task<List<CreditDto>> GetCreditsByRecordAsync(int recordId)
+        {
+            return await _context.Credits
+                .Where(c => c.RecordId == recordId)
+                .Select(c => new CreditDto
+                {
+                    Id = c.Id,
+                    NameOfCredit = c.NameOfCredit,
+                    CreditCurrentValue = c.CreditCurrentValue,
+                    DateOfOpening = c.DateOfOpening,
+                    PeriodOfPayment = c.PeriodOfPayment,
+                    InterestRate = c.InterestRate,
+                    Amount = c.Amount,
+                    PayType = c.PayType,
+                    IsActive = c.IsActive
+                })
+                .ToListAsync();
+        }
     }
 }

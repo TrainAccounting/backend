@@ -95,5 +95,26 @@ namespace Trainacc.Services
             await _context.SaveChangesAsync();
             return true;
         }
+
+        public async Task<List<DepositDto>> GetDepositsByRecordAsync(int recordId)
+        {
+            return await _context.Deposits
+                .Where(d => d.RecordId == recordId)
+                .Select(d => new DepositDto
+                {
+                    Id = d.Id,
+                    NameOfDeposit = d.NameOfDeposit,
+                    DepositStartValue = d.DepositStartValue,
+                    DepositCurrentValue = d.DepositCurrentValue,
+                    DateOfOpening = d.DateOfOpening,
+                    PeriodOfPayment = d.PeriodOfPayment,
+                    InterestRate = d.InterestRate,
+                    Capitalisation = d.Capitalisation,
+                    Amount = d.Amount,
+                    PayType = d.PayType,
+                    IsActive = d.IsActive
+                })
+                .ToListAsync();
+        }
     }
 }

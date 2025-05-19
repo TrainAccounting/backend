@@ -69,5 +69,12 @@ namespace Trainacc.Controllers
             }
             catch { return Problem(); }
         }
+
+        [HttpGet("by-record/{recordId}")]
+        public async Task<ActionResult<IEnumerable<CreditDto>>> GetCreditsByRecord(int recordId)
+        {
+            try { return await _service.GetCreditsByRecordAsync(recordId); }
+            catch { return Problem(); }
+        }
     }
 }

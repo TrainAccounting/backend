@@ -46,5 +46,12 @@ namespace Trainacc.Controllers
             }
             catch { return Problem(); }
         }
+
+        [HttpGet("by-user/{userId}")]
+        public async Task<ActionResult<IEnumerable<RecordDto>>> GetRecordsByUser(int userId)
+        {
+            try { return await _service.GetRecordsByUserAsync(userId); }
+            catch { return Problem(); }
+        }
     }
 }

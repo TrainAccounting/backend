@@ -69,5 +69,24 @@ namespace Trainacc.Controllers
             }
             catch { return Problem(); }
         }
+
+        [HttpGet("by-record/{recordId}")]
+        public async Task<ActionResult<IEnumerable<RestrictionDto>>> GetRestrictionsByRecord(int recordId)
+        {
+            try { return await _service.GetRestrictionsByRecordAsync(recordId); }
+            catch { return Problem(); }
+        }
+
+        [HttpGet("exceeded")]
+        public async Task<ActionResult<IEnumerable<RestrictionDto>>> GetExceededRestrictions()
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+                var result = await _service.GetExceededRestrictionsAsync(userId);
+                return Ok(result);
+            }
+            catch { return Problem(); }
+        }
     }
 }

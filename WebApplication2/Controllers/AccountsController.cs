@@ -70,5 +70,48 @@ namespace Trainacc.Controllers
             }
             catch { return Problem(); }
         }
+
+        [HttpGet("user-balance")]
+        public async Task<ActionResult<decimal>> GetUserTotalBalance()
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+                var balance = await _service.GetUserTotalBalanceAsync(userId);
+                return Ok(balance);
+            }
+            catch { return Problem(); }
+        }
+
+        [HttpGet("user-accounts-summary")]
+        public async Task<ActionResult<List<AccountSummaryDto>>> GetAccountSummaries()
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+                var result = await _service.GetAccountSummariesAsync(userId);
+                return Ok(result);
+            }
+            catch { return Problem(); }
+        }
+
+        [HttpGet("by-record/{recordId}")]
+        public async Task<ActionResult<IEnumerable<AccountDto>>> GetAccountsByRecord(int recordId)
+        {
+            try { return await _service.GetAccountsByRecordAsync(recordId); }
+            catch { return Problem(); }
+        }
+
+        [HttpGet("balance-history")]
+        public async Task<ActionResult<List<object>>> GetBalanceHistory([FromQuery] DateTime from, [FromQuery] DateTime to)
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+                var history = await _service.GetBalanceHistoryAsync(userId, from, to);
+                return Ok(history.Select(x => new { date = x.Date, balance = x.Balance }));
+            }
+            catch { return Problem(); }
+        }
     }
 }

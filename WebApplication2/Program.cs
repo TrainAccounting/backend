@@ -83,9 +83,15 @@ builder.Services.AddScoped<Trainacc.Services.AccountsService>();
 builder.Services.AddScoped<Trainacc.Services.CreditsService>();
 builder.Services.AddScoped<Trainacc.Services.DepositsService>();
 builder.Services.AddScoped<Trainacc.Services.RestrictionsService>();
-builder.Services.AddScoped<Trainacc.Services.TransactionsService>();
+builder.Services.AddScoped<Trainacc.Services.TransactionsService>(provider =>
+{
+    var db = provider.GetRequiredService<AppDbContext>();
+    var restrictions = provider.GetRequiredService<Trainacc.Services.RestrictionsService>();
+    return new Trainacc.Services.TransactionsService(db, restrictions);
+});
 builder.Services.AddScoped<Trainacc.Services.RecordsService>();
 builder.Services.AddScoped<Trainacc.Services.AuthService>();
+builder.Services.AddScoped<Trainacc.Services.SubscriptionsService>();
 
 builder.Services.AddCors(option =>
 {

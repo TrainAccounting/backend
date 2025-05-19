@@ -67,5 +67,26 @@ namespace Trainacc.Services
                 DateOfCreation = record.DateOfCreation
             };
         }
+
+        public async Task<List<RecordDto>> GetRecordsByUserAsync(int userId)
+        {
+            return await _context.Records
+                .Where(r => r.UserId == userId)
+                .Include(r => r.User)
+                .Select(r => new RecordDto
+                {
+                    Id = r.Id,
+                    NameOfRecord = r.NameOfRecord,
+                    DateOfCreation = r.DateOfCreation,
+                    User = r.User != null ? new UserDto
+                    {
+                        Id = r.User.Id,
+                        FIO = r.User.FIO,
+                        Email = r.User.Email,
+                        Phone = r.User.Phone
+                    } : null
+                })
+                .ToListAsync();
+        }
     }
 }

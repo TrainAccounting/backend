@@ -77,5 +77,67 @@ namespace Trainacc.Services
             await _context.SaveChangesAsync();
             return true;
         }
+
+        public async Task<decimal> GetUserTotalBalanceAsync(int userId)
+        {
+            var record = await _context.Records.FirstOrDefaultAsync(r => r.UserId == userId);
+            if (record == null) return 0;
+            return await _context.Accounts.Where(a => a.RecordId == record.Id).SumAsync(a => a.Balance);
+        }
+
+        public async Task<List<AccountSummaryDto>> GetAccountSummariesAsync(int userId)
+        {
+            var record = await _context.Records.FirstOrDefaultAsync(r => r.UserId == userId);
+            if (record == null) return new List<AccountSummaryDto>();
+            return await _context.Accounts
+                .Where(a => a.RecordId == record.Id)
+                .Select(a => new AccountSummaryDto
+                {
+                    Id = a.Id,
+                    NameOfAccount = a.NameOfAccount,
+                    Balance = a.Balance
+                })
+                .ToListAsync();
+        }
+
+        public async Task<List<AccountDto>> GetAccountsByRecordAsync(int recordId)
+        {
+            return await _context.Accounts
+                .Where(a => a.RecordId == recordId)
+                .Select(a => new AccountDto
+                {
+                    Id = a.Id,
+                    NameOfAccount = a.NameOfAccount,
+                    DateOfOpening = a.DateOfOpening,
+                    Balance = a.Balance
+                })
+                .ToListAsync();
+        }
+
+        public async Task<List<(DateTime Date, decimal Balance)>> GetBalanceHistoryAsync(int userId, DateTime from, DateTime to)
+        {
+            var record = await _context.Records.FirstOrDefaultAsync(r => r.UserId == userId);
+            if (record == null) return new List<(DateTime, decimal)>();
+            var transactions = await _context.Transactions
+                .Where(t => t.RecordId == record.Id && t.TimeOfTransaction >= from && t.TimeOfTransaction <= to)
+                .OrderBy(t => t.TimeOfTransaction)
+                .ToListAsync();
+            var result = new List<(DateTime, decimal)>();
+            decimal balance = 0;
+            DateTime? lastDate = null;
+            foreach (var t in transactions)
+            {
+                if (t.Type == TransactionType.Income)
+                    balance += t.TransactionValue;
+                else
+                    balance -= t.TransactionValue;
+                if (lastDate == null || t.TimeOfTransaction.Date != lastDate.Value.Date)
+                {
+                    result.Add((t.TimeOfTransaction.Date, balance));
+                    lastDate = t.TimeOfTransaction.Date;
+                }
+            }
+            return result;
+        }
     }
 }

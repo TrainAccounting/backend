@@ -17,6 +17,7 @@ namespace Trainacc.Data
         public DbSet<Transactions> Transactions { get; set; }
         public DbSet<Deposit> Deposits { get; set; }
         public DbSet<Credit> Credits { get; set; }
+        public DbSet<Subscription> Subscriptions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -62,6 +63,15 @@ namespace Trainacc.Data
                 .HasForeignKey(c => c.RecordId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            modelBuilder.Entity<Record>()
+                .HasMany(r => r.Subscriptions)
+                .WithOne(s => s.Record)
+                .HasForeignKey(s => s.RecordId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Transactions>()
+                .Property(t => t.Type)
+                .HasConversion<string>();
         }
     }
 }
