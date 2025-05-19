@@ -249,18 +249,6 @@ namespace Trainacc.Services
             return record.Id;
         }
 
-        public async Task<TransactionDto> CreateTransactionFromSubscriptionAsync(Subscription sub)
-        {
-            var dto = new TransactionCreateDto
-            {
-                Category = sub.Category,
-                TransactionValue = sub.Amount,
-                RecordId = sub.RecordId,
-                Type = sub.Type
-            };
-            return await CreateTransactionAsync(dto);
-        }
-
         public async Task<int> ArchiveOldTransactionsAsync(DateTime beforeDate)
         {
             var oldTxs = await _context.Transactions.Where(t => t.TimeOfTransaction < beforeDate && t.DeletedAt == null).ToListAsync();

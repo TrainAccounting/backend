@@ -27,7 +27,6 @@ namespace Trainacc.Models
         public List<Transactions> Transactions { get; set; } = new List<Transactions>();
         public List<Deposit> Deposits { get; set; } = new List<Deposit>();
         public List<Credit> Credits { get; set; } = new List<Credit>();
-        public List<Subscription> Subscriptions { get; set; } = new List<Subscription>();
     }
     public class Restriction
     {
@@ -101,19 +100,6 @@ namespace Trainacc.Models
         public PaymentType PayType { get; set; }
         public decimal Amount { get; set; }
         public int RecordId { get; set; }
-        public bool IsActive { get; set; }
-        public Record? Record { get; set; }
-    }
-    public class Subscription
-    {
-        public int Id { get; set; }
-        public string? Name { get; set; }
-        public decimal Amount { get; set; }
-        public string? Category { get; set; }
-        public TransactionType Type { get; set; }
-        public int RecordId { get; set; }
-        public DateTime StartDate { get; set; }
-        public int PeriodDays { get; set; }
         public bool IsActive { get; set; }
         public Record? Record { get; set; }
     }

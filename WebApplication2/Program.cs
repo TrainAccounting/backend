@@ -91,7 +91,6 @@ builder.Services.AddScoped<Trainacc.Services.TransactionsService>(provider =>
 });
 builder.Services.AddScoped<Trainacc.Services.RecordsService>();
 builder.Services.AddScoped<Trainacc.Services.AuthService>();
-builder.Services.AddScoped<Trainacc.Services.SubscriptionsService>();
 
 builder.Services.AddCors(option =>
 {
