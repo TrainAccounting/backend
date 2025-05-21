@@ -109,24 +109,34 @@ namespace Trainacc.Services
         {
             var transaction = await _context.Transactions.FindAsync(id);
             if (transaction == null) return false;
+            var oldType = transaction.Type;
+            var oldValue = transaction.TransactionValue;
+            var oldCategory = transaction.Category;
             transaction.UpdatedAt = DateTime.UtcNow;
             var account = await _context.Accounts.FirstOrDefaultAsync(a => a.RecordId == transaction.RecordId);
+
             if (account != null)
             {
-                if (transaction.Type == TransactionType.Income)
-                    account.Balance -= transaction.TransactionValue;
+                if (oldType == TransactionType.Income)
+                    account.Balance -= oldValue;
                 else
-                    account.Balance += transaction.TransactionValue;
+                    account.Balance += oldValue;
             }
-            if (transaction.Type == TransactionType.Expense)
+            if (oldType == TransactionType.Expense)
             {
-                await _restrictionsService.UpdateRestrictionsSpentAsync(transaction.RecordId, transaction.Category, -transaction.TransactionValue);
+                await _restrictionsService.UpdateRestrictionsSpentAsync(transaction.RecordId, oldCategory, -oldValue);
             }
-            transaction.Category = dto.Category ?? transaction.Category;
+
+            if (dto.Category != null)
+                transaction.Category = dto.Category;
             if (dto.TransactionValue.HasValue)
                 transaction.TransactionValue = dto.TransactionValue.Value;
             if (dto.Type.HasValue)
                 transaction.Type = dto.Type.Value;
+
+            if (string.IsNullOrWhiteSpace(transaction.Category) || transaction.TransactionValue < 0)
+                return false;
+
             if (account != null)
             {
                 if (transaction.Type == TransactionType.Income)
@@ -178,8 +188,7 @@ namespace Trainacc.Services
                     Category = g.Key.Category,
                     Type = g.Key.Type,
                     TotalTransactions = g.Count(),
-                    TotalValue = g.Sum(x => x.TransactionValue),
-                    TotalAmount = g.Sum(x => x.TransactionValue)
+                    TotalValue = g.Sum(x => x.TransactionValue)
                 })
                 .ToListAsync();
         }
@@ -213,8 +222,7 @@ namespace Trainacc.Services
                     Category = g.Key,
                     Type = TransactionType.Expense,
                     TotalTransactions = g.Count(),
-                    TotalValue = g.Sum(x => x.TransactionValue),
-                    TotalAmount = g.Sum(x => x.TransactionValue)
+                    TotalValue = g.Sum(x => x.TransactionValue)
                 })
                 .OrderByDescending(x => x.TotalValue)
                 .Take(topN)

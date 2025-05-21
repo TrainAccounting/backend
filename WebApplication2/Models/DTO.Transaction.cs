@@ -12,12 +12,9 @@ namespace Trainacc.Models
 
     public class TransactionSummaryDto
     {
-        public int Id { get; set; }
         public string? Category { get; set; }
-        public decimal TransactionValue { get; set; }
         public int TotalTransactions { get; set; }
         public decimal TotalValue { get; set; }
-        public decimal TotalAmount { get; set; }
         public TransactionType Type { get; set; }
     }
 
