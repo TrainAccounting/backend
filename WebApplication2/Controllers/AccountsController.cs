@@ -1,9 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Trainacc.Data;
-using Trainacc.Models;
 using Trainacc.Filters;
+using Trainacc.Models;
+using Trainacc.Services;
 
 namespace Trainacc.Controllers
 {
@@ -14,136 +13,90 @@ namespace Trainacc.Controllers
     [ServiceFilter(typeof(ETagFilter))]
     public class AccountsController : ControllerBase
     {
-        private readonly AppDbContext _context;
-
-        public AccountsController(AppDbContext context) => _context = context;
+        private readonly AccountsService _service;
+        public AccountsController(AccountsService service) => _service = service;
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<AccountDto>>> GetAccounts() =>
-            await _context.Accounts.Select(a => new AccountDto
-            {
-                Id = a.Id,
-                NameOfAccount = a.NameOfAccount,
-                DateOfOpening = a.DateOfOpening,
-                Balance = a.Balance
-            }).ToListAsync();
-
-        [HttpGet("by-record/{recordId}")]
-        public async Task<ActionResult<IEnumerable<AccountDto>>> GetAccountsByRecord(int recordId) =>
-            await _context.Accounts.Where(a => a.RecordId == recordId).Select(a => new AccountDto
-            {
-                Id = a.Id,
-                NameOfAccount = a.NameOfAccount,
-                DateOfOpening = a.DateOfOpening,
-                Balance = a.Balance
-            }).ToListAsync();
-
-        [HttpGet("{id}")]
-        public async Task<ActionResult<AccountDto>> GetAccount(int id)
+        public async Task<IActionResult> Get(
+            int? id = null,
+            string? mode = null,
+            int? recordId = null,
+            DateTime? from = null,
+            DateTime? to = null)
         {
-            var account = await _context.Accounts.FindAsync(id);
-            if (account == null) return NotFound();
-            return new AccountDto
+            try
             {
-                Id = account.Id,
-                NameOfAccount = account.NameOfAccount ?? string.Empty,
-                DateOfOpening = account.DateOfOpening,
-                Balance = account.Balance
-            };
+                var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+                if (id.HasValue)
+                {
+                    var result = await _service.GetAccountAsync(id.Value);
+                    if (result == null) return NotFound();
+                    return Ok(result);
+                }
+                if (!string.IsNullOrEmpty(mode))
+                {
+                    switch (mode.ToLower())
+                    {
+                        case "user-balance":
+                            var balance = await _service.GetUserTotalBalanceAsync(userId);
+                            return Ok(balance);
+                        case "summary":
+                            var summaries = await _service.GetAccountSummariesAsync(userId);
+                            return Ok(summaries);
+                        case "by-record":
+                            if (recordId.HasValue)
+                                return Ok(await _service.GetAccountsByRecordAsync(recordId.Value));
+                            return BadRequest("recordId required");
+                        case "balance-history":
+                            if (!from.HasValue || !to.HasValue)
+                                return BadRequest("from и to обязательны");
+                            var history = await _service.GetBalanceHistoryAsync(userId, from.Value, to.Value);
+                            return Ok(history.Select(x => new { date = x.Date, balance = x.Balance }));
+                        default:
+                            return BadRequest("Unknown mode");
+                    }
+                }
+                return Ok(await _service.GetAccountsAsync());
+            }
+            catch { return Problem(); }
         }
 
         [HttpPost]
-        public async Task<ActionResult<AccountDto>> CreateAccount(AccountCreateDto dto)
+        public async Task<IActionResult> Post([FromBody] AccountCreateDto? dto = null)
         {
-            var recordId = GetRecordId();
-            var record = await _context.Records.FindAsync(dto.RecordId);
-            if (record == null) return NotFound("Record not found");
-
-            var account = new Account
+            if (dto == null)
+                return BadRequest("Данные не переданы");
+            try
             {
-                NameOfAccount = dto.NameOfAccount,
-                DateOfOpening = DateTime.UtcNow,
-                RecordId = dto.RecordId,
-                Balance = 0
-            };
-
-            _context.Accounts.Add(account);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetAccounts), new AccountDto
-            {
-                Id = account.Id,
-                NameOfAccount = account.NameOfAccount,
-                DateOfOpening = account.DateOfOpening,
-                Balance = account.Balance
-            });
-        }
-
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateAccount(int id, AccountUpdateDto dto)
-        {
-            var account = await _context.Accounts.FindAsync(id);
-            if (account == null) return NotFound();
-
-            account.NameOfAccount = dto.NameOfAccount ?? account.NameOfAccount;
-
-            await _context.SaveChangesAsync();
-            return Ok(new AccountDto
-            {
-                Id = account.Id,
-                NameOfAccount = account.NameOfAccount ?? string.Empty,
-                DateOfOpening = account.DateOfOpening,
-                Balance = account.Balance
-            });
-        }
-
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteAccount(int id)
-        {
-            var account = await _context.Accounts.FindAsync(id);
-            if (account == null) return NotFound();
-
-            _context.Accounts.Remove(account);
-            await _context.SaveChangesAsync();
-            return NoContent();
-        }
-
-        [HttpGet("balance")]
-        public async Task<ActionResult<decimal>> GetTotalBalance()
-        {
-            var recordId = GetRecordId();
-            var record = await _context.Records.Include(r => r.Accounts).FirstOrDefaultAsync(r => r.Id == recordId);
-            if (record == null)
-            {
-                return NotFound("Record not found for the current user.");
+                var created = await _service.CreateAccountAsync(dto);
+                if (created == null) return NotFound("Record not found");
+                return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
             }
-            return record.Accounts.Sum(a => a.Balance);
+            catch { return Problem(); }
         }
 
-        [HttpGet("report/{recordId}")]
-        public async Task<ActionResult<IEnumerable<AccountReportDto>>> GetAccountReport(int recordId)
+        [HttpPut]
+        public async Task<IActionResult> Put(int id, [FromBody] AccountUpdateDto dto)
         {
-            var record = await _context.Records.Include(r => r.Accounts).ThenInclude(r => r.Transactions).FirstOrDefaultAsync(r => r.Id == recordId);
-            if (record == null) return NotFound("Record not found");
-
-            var report = record.Accounts.Select(a => new AccountReportDto
+            try
             {
-                AccountName = a.NameOfAccount ?? string.Empty,
-                TotalTransactions = a.Transactions.Count,
-                TotalValue = a.Transactions.Sum(t => t.TransactionValue)
-            }).ToList();
-
-            return Ok(report);
-        }
-
-        private int GetRecordId()
-        {
-            var recordIdClaim = User.FindFirst("RecordId");
-            if (recordIdClaim == null)
-            {
-                throw new NullReferenceException("RecordId claim is missing.");
+                var ok = await _service.UpdateAccountAsync(id, dto);
+                if (!ok) return NotFound();
+                return NoContent();
             }
-            return int.Parse(recordIdClaim.Value);
+            catch { return Problem(); }
+        }
+
+        [HttpDelete]
+        public async Task<IActionResult> Delete(int id)
+        {
+            try
+            {
+                var ok = await _service.DeleteAccountAsync(id);
+                if (!ok) return NotFound();
+                return NoContent();
+            }
+            catch { return Problem(); }
         }
     }
 }

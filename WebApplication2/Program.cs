@@ -25,7 +25,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? string.Empty)),
             RoleClaimType = ClaimTypes.Role
         };
     });
@@ -69,6 +69,7 @@ builder.Services.AddSwaggerGen(c =>
             new string[]{}
         }
     });
+    c.OperationFilter<Trainacc.Filters.ParamDescriptionFilter>();
 });
 
 builder.Services.AddAuthorization();
@@ -78,6 +79,29 @@ builder.Services.AddScoped<ETagFilter>();
 builder.Services.AddScoped<ValidateModelAttribute>();
 //builder.Services.AddScoped<RoleBasedAuthFilter>(_ =>
 //    new RoleBasedAuthFilter("Admin"));
+builder.Services.AddScoped<Trainacc.Services.UsersService>();
+builder.Services.AddScoped<Trainacc.Services.AccountsService>();
+builder.Services.AddScoped<Trainacc.Services.CreditsService>();
+builder.Services.AddScoped<Trainacc.Services.DepositsService>();
+builder.Services.AddScoped<Trainacc.Services.RestrictionsService>();
+builder.Services.AddScoped<Trainacc.Services.TransactionsService>(provider =>
+{
+    var db = provider.GetRequiredService<AppDbContext>();
+    var restrictions = provider.GetRequiredService<Trainacc.Services.RestrictionsService>();
+    return new Trainacc.Services.TransactionsService(db, restrictions);
+});
+builder.Services.AddScoped<Trainacc.Services.RecordsService>();
+builder.Services.AddScoped<Trainacc.Services.AuthService>();
+
+builder.Services.AddCors(option =>
+{
+    option.AddDefaultPolicy(policy =>
+    {
+        policy.WithOrigins("http://localhost:3000");
+        policy.AllowAnyHeader();
+        policy.AllowAnyMethod();
+    });
+});
 
 var app = builder.Build();
 
@@ -90,6 +114,8 @@ if (app.Environment.IsDevelopment())
         c.RoutePrefix = "swagger";
     });
 }
+
+app.UseCors();
 
 app.UseHttpsRedirection();
 

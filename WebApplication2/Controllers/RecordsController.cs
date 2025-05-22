@@ -1,10 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
-using Trainacc.Data;
 using Trainacc.Filters;
 using Trainacc.Models;
+using Trainacc.Services;
 
 namespace Trainacc.Controllers
 {
@@ -15,129 +13,52 @@ namespace Trainacc.Controllers
     [ServiceFilter(typeof(ETagFilter))]
     public class RecordsController : ControllerBase
     {
-        private readonly AppDbContext _context;
-
-        public RecordsController(AppDbContext context)
-        {
-            _context = context;
-        }
+        private readonly RecordsService _service;
+        public RecordsController(RecordsService service) => _service = service;
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<RecordDto>>> GetRecords()
+        public async Task<IActionResult> Get(
+            int? id = null,
+            string? mode = null,
+            int? userId = null)
         {
-            return await _context.Records
-                .Include(r => r.User)
-                .Select(r => new RecordDto
-                {
-                    Id = r.Id,
-                    NameOfRecord = r.NameOfRecord,
-                    DateOfCreation = r.DateOfCreation,
-                    User = new UserDto
-                    {
-                        Id = r.User.Id,
-                        FIO = r.User.FIO,
-                        Email = r.User.Email,
-                        Phone = r.User.Phone
-                    }
-                })
-                .ToListAsync();
-        }
-
-        [HttpGet("{id}")]
-        public async Task<ActionResult<RecordDto>> GetRecord(int id)
-        {
-            var record = await _context.Records
-                .Include(r => r.User)
-                .FirstOrDefaultAsync(r => r.Id == id);
-
-            if (record == null)
+            try
             {
-                return NotFound();
-            }
-
-            return new RecordDto
-            {
-                Id = record.Id,
-                NameOfRecord = record.NameOfRecord,
-                DateOfCreation = record.DateOfCreation,
-                User = new UserDto
+                if (id.HasValue)
                 {
-                    Id = record.User.Id,
-                    FIO = record.User.FIO,
-                    Email = record.User.Email,
-                    Phone = record.User.Phone
+                    var result = await _service.GetRecordAsync(id.Value);
+                    if (result == null) return NotFound();
+                    return Ok(result);
                 }
-            };
-        }
-
-        [HttpGet("{id}/full")]
-        public async Task<ActionResult<RecordDto>> GetRecordDetails(int id)
-        {
-            var record = await _context.Records
-                .Include(r => r.User)
-                .Include(r => r.Accounts)
-                .Include(r => r.Transactions)
-                .FirstOrDefaultAsync(r => r.Id == id);
-
-            if (record == null)
-            {
-                return NotFound();
+                if (!string.IsNullOrEmpty(mode))
+                {
+                    switch (mode.ToLower())
+                    {
+                        case "by-user":
+                            if (userId.HasValue)
+                                return Ok(await _service.GetRecordsByUserAsync(userId.Value));
+                            return BadRequest("userId required");
+                        default:
+                            return BadRequest("Unknown mode");
+                    }
+                }
+                return Ok(await _service.GetRecordsAsync());
             }
-
-            return new RecordDto
-            {
-                Id = record.Id,
-                NameOfRecord = record.NameOfRecord,
-                DateOfCreation = record.DateOfCreation,
-                User = record.User != null ? new UserDto
-                {
-                    Id = record.User.Id,
-                    FIO = record.User.FIO,
-                    Email = record.User.Email,
-                    Phone = record.User.Phone
-                } : null,
-                Accounts = record.Accounts.Select(a => new AccountSummaryDto
-                {
-                    Id = a.Id,
-                    NameOfAccount = a.NameOfAccount,
-                    Balance = a.Balance
-                }).ToList(),
-                Transactions = record.Transactions.Select(t => new TransactionSummaryDto
-                {
-                    Id = t.Id,
-                    Category = t.Category,
-                    TransactionValue = t.TransactionValue
-                }).ToList()
-            };
+            catch { return Problem(); }
         }
 
         [HttpPost]
-        public async Task<ActionResult<RecordDto>> CreateRecord(RecordCreateDto recordDto)
+        public async Task<IActionResult> Post([FromBody] RecordCreateDto? recordDto = null)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (userId == null) return Unauthorized("User not authenticated");
-
-            var user = await _context.Users.Include(u => u.Records).FirstOrDefaultAsync(u => u.Id == int.Parse(userId));
-            if (user == null) return BadRequest("User not found");
-
-            if (user.Records.Any()) return BadRequest("User already has a record");
-
-            var record = new Record
+            if (recordDto == null)
+                return BadRequest("Данные не переданы");
+            try
             {
-                NameOfRecord = recordDto.NameOfRecord,
-                DateOfCreation = DateTime.UtcNow,
-                UserId = user.Id
-            };
-
-            _context.Records.Add(record);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetRecord), new { id = record.Id }, new RecordDto
-            {
-                Id = record.Id,
-                NameOfRecord = record.NameOfRecord,
-                DateOfCreation = record.DateOfCreation
-            });
+                var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+                var created = await _service.CreateRecordAsync(recordDto, userId);
+                return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
+            }
+            catch { return Problem(); }
         }
     }
 }

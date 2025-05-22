@@ -1,9 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Trainacc.Data;
-using Trainacc.Models;
 using Trainacc.Filters;
+using Trainacc.Services;
+using Trainacc.Models;
 
 namespace Trainacc.Controllers
 {
@@ -14,149 +13,75 @@ namespace Trainacc.Controllers
     [ServiceFilter(typeof(ETagFilter))]
     public class CreditsController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly CreditsService _service;
+        public CreditsController(CreditsService service) => _service = service;
 
-        public CreditsController(AppDbContext context) => _context = context;
-
-        [HttpGet("by-record/{recordId}")]
-        public async Task<ActionResult<IEnumerable<CreditDto>>> GetCreditsByRecord(int recordId) =>
-            await _context.Credits
-                .Where(c => c.RecordId == recordId)
-                .Select(c => new CreditDto
-                {
-                    Id = c.Id,
-                    NameOfCredit = c.NameOfCredit,
-                    CreditCurrentValue = c.CreditCurrentValue,
-                    DateOfOpening = c.DateOfOpening,
-                    PeriodOfPayment = c.PeriodOfPayment,
-                    InterestRate = c.InterestRate,
-                    Amount = c.Amount,
-                    PayType = c.PayType
-                })
-                .ToListAsync();
-
-        [HttpGet("all")]
-        public async Task<ActionResult<IEnumerable<CreditDto>>> GetAllCredits()
+        [HttpGet]
+        public async Task<IActionResult> Get(
+            int? id = null,
+            string? mode = null,
+            int? recordId = null)
         {
-            var recordId = GetRecordId();
-            return await _context.Credits
-                .Where(c => c.RecordId == recordId)
-                .Select(c => new CreditDto
+            try
+            {
+                if (id.HasValue)
                 {
-                    Id = c.Id,
-                    NameOfCredit = c.NameOfCredit,
-                    CreditCurrentValue = c.CreditCurrentValue,
-                    DateOfOpening = c.DateOfOpening,
-                    PeriodOfPayment = c.PeriodOfPayment,
-                    InterestRate = c.InterestRate,
-                    PayType = c.PayType
-                })
-                .ToListAsync();
+                    var result = await _service.GetCreditAsync(id.Value);
+                    if (result == null) return NotFound();
+                    return Ok(result);
+                }
+                if (!string.IsNullOrEmpty(mode))
+                {
+                    switch (mode.ToLower())
+                    {
+                        case "by-record":
+                            if (recordId.HasValue)
+                                return Ok(await _service.GetCreditsByRecordAsync(recordId.Value));
+                            return BadRequest("recordId required");
+                        default:
+                            return BadRequest("Unknown mode");
+                    }
+                }
+                return Ok(await _service.GetCreditsAsync());
+            }
+            catch { return Problem(); }
         }
 
         [HttpPost]
-        public async Task<IActionResult> CreateCredit([FromBody] CreditDto dto)
+        public async Task<IActionResult> Post([FromBody] CreditDto? dto = null)
         {
-            var recordId = GetRecordId();
-            var credit = new Credit
+            if (dto == null)
+                return BadRequest("Данные не переданы");
+            try
             {
-                NameOfCredit = dto.NameOfCredit,
-                CreditCurrentValue = dto.CreditCurrentValue,
-                DateOfOpening = dto.DateOfOpening,
-                PeriodOfPayment = dto.PeriodOfPayment,
-                InterestRate = dto.InterestRate,
-                Amount = dto.Amount,
-                PayType = dto.PayType,
-                IsActive = dto.IsActive,
-                RecordId = recordId
-            };
-
-            _context.Credits.Add(credit);
-            await _context.SaveChangesAsync();
-
-            var account = await _context.Accounts.FirstOrDefaultAsync(a => a.RecordId == recordId);
-            if (account != null && credit.Amount > 0)
-            {
-                var transaction = new Transactions
-                {
-                    Category = "Credit",
-                    TransactionValue = -Math.Abs(credit.Amount),
-                    TimeOfTransaction = DateTime.UtcNow,
-                    RecordId = recordId
-                };
-                _context.Transactions.Add(transaction);
-                account.Balance -= Math.Abs(credit.Amount);
-                await _context.SaveChangesAsync();
+                var created = await _service.CreateCreditAsync(dto);
+                return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
             }
-
-            return CreatedAtAction(nameof(GetAllCredits), new { id = credit.Id }, dto);
+            catch { return Problem(); }
         }
 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateCredit(int id, CreditUpdateDto dto)
+        [HttpPut]
+        public async Task<IActionResult> Put(int id, [FromBody] CreditUpdateDto dto)
         {
-            var credit = await _context.Credits.FindAsync(id);
-            if (credit == null) return NotFound();
-
-            credit.NameOfCredit = dto.NameOfCredit ?? credit.NameOfCredit;
-            credit.CreditCurrentValue = dto.CreditCurrentValue ?? credit.CreditCurrentValue;
-            credit.PeriodOfPayment = dto.PeriodOfPayment ?? credit.PeriodOfPayment;
-            credit.InterestRate = dto.InterestRate ?? credit.InterestRate;
-
-            await _context.SaveChangesAsync();
-            return NoContent();
-        }
-
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteCredit(int id)
-        {
-            var credit = await _context.Credits.FindAsync(id);
-            if (credit == null) return NotFound();
-
-            _context.Credits.Remove(credit);
-            await _context.SaveChangesAsync();
-            return NoContent();
-        }
-
-        [HttpGet("summary")]
-        public async Task<ActionResult<CreditSummaryDto>> GetCreditSummary()
-        {
-            var recordId = GetRecordId();
-            var credits = await _context.Credits.Where(c => c.RecordId == recordId).ToListAsync();
-
-            return new CreditSummaryDto
+            try
             {
-                TotalCredits = (int)credits.Sum(d => d.CreditCurrentValue),
-                ActiveCredits = credits.Count(c => c.IsActive)
-            };
-        }
-
-        [HttpGet("report/{recordId}")]
-        public async Task<ActionResult<IEnumerable<CreditReportDto>>> GetCreditReport(int recordId)
-        {
-            var record = await _context.Records.Include(r => r.Credits).FirstOrDefaultAsync(r => r.Id == recordId);
-            if (record == null) return NotFound("Record not found");
-
-            var report = record.Credits.Select(c => new CreditReportDto
-            {
-                CreditId = c.Id,
-                Name = c.NameOfCredit,
-                CurrentValue = c.CreditCurrentValue,
-                InterestRate = c.InterestRate,
-                PeriodOfPayment = c.PeriodOfPayment
-            }).ToList();
-
-            return Ok(report);
-        }
-
-        private int GetRecordId()
-        {
-            var recordIdClaim = User.FindFirst("RecordId");
-            if (recordIdClaim == null)
-            {
-                throw new NullReferenceException("RecordId claim is missing.");
+                var ok = await _service.UpdateCreditAsync(id, dto);
+                if (!ok) return NotFound();
+                return NoContent();
             }
-            return int.Parse(recordIdClaim.Value);
+            catch { return Problem(); }
+        }
+
+        [HttpDelete]
+        public async Task<IActionResult> Delete(int id)
+        {
+            try
+            {
+                var ok = await _service.DeleteCreditAsync(id);
+                if (!ok) return NotFound();
+                return NoContent();
+            }
+            catch { return Problem(); }
         }
     }
 }

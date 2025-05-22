@@ -1,9 +1,9 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Trainacc.Data;
-using Trainacc.Models;
+using System.Threading.Tasks;
 using Trainacc.Filters;
+using Trainacc.Models;
+using Trainacc.Services;
 
 namespace Trainacc.Controllers
 {
@@ -14,208 +14,141 @@ namespace Trainacc.Controllers
     [ServiceFilter(typeof(ETagFilter))]
     public class TransactionsController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly TransactionsService _service;
+        public TransactionsController(TransactionsService service) => _service = service;
 
-        public TransactionsController(AppDbContext context) => _context = context;
-
-        [HttpGet("by-record/{recordId}")]
-        public async Task<ActionResult<IEnumerable<TransactionDto>>> GetTransactionsByRecord(int recordId) =>
-            await _context.Transactions
-                .Where(t => t.RecordId == recordId)
-                .Select(t => new TransactionDto
-                {
-                    Id = t.Id,
-                    Category = t.Category,
-                    TransactionValue = t.TransactionValue,
-                    TimeOfTransaction = t.TimeOfTransaction
-                })
-                .ToListAsync();
-
-        [HttpGet("all")]
-        public async Task<ActionResult<IEnumerable<TransactionDto>>> GetAllTransactions()
+        [HttpGet]
+        public async Task<IActionResult> Get(
+            int? id = null,
+            string? mode = null,
+            int? recordId = null,
+            int? topN = null,
+            TransactionType? type = null,
+            string? category = null,
+            DateTime? from = null,
+            DateTime? to = null,
+            decimal? min = null,
+            decimal? max = null)
         {
-            var recordId = GetRecordId();
-            return await _context.Transactions
-                .Where(t => t.RecordId == recordId)
-                .Select(t => new TransactionDto
-                {
-                    Id = t.Id,
-                    Category = t.Category,
-                    TransactionValue = t.TransactionValue,
-                    TimeOfTransaction = t.TimeOfTransaction
-                })
-                .ToListAsync();
-        }
-
-        [HttpGet("{id}")]
-        public async Task<ActionResult<TransactionDto>> GetTransaction(int id)
-        {
-            var transaction = await _context.Transactions.FindAsync(id);
-            if (transaction == null) return NotFound();
-            return new TransactionDto
+            try
             {
-                Id = transaction.Id,
-                Category = transaction.Category ?? string.Empty,
-                TransactionValue = transaction.TransactionValue,
-                TimeOfTransaction = transaction.TimeOfTransaction
-            };
+                var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+                if (id.HasValue)
+                {
+                    var result = await _service.GetTransactionAsync(id.Value);
+                    if (result == null) return NotFound();
+                    return Ok(result);
+                }
+                if (!string.IsNullOrEmpty(mode))
+                {
+                    switch (mode.ToLower())
+                    {
+                        case "summary":
+                            return Ok(await _service.GetSummaryByCategoryAsync(userId, from, to));
+                        case "top":
+                            return Ok(await _service.GetTopExpensesByCategoryAsync(userId, topN ?? 5, from, to));
+                        case "filter":
+                            return Ok(await _service.FilterTransactionsAsync(userId, type, category, from, to, min, max));
+                        case "by-record":
+                            if (recordId.HasValue)
+                                return Ok(await _service.GetTransactionsByRecordAsync(recordId.Value));
+                            return BadRequest("recordId required");
+                        case "export":
+                            var transactions = await _service.FilterTransactionsAsync(userId, type, category, from, to, null, null);
+                            var csv = "Id,Category,Value,Date,Type\n" + string.Join("\n", transactions.Select(t => $"{t.Id},{t.Category},{t.TransactionValue},{t.TimeOfTransaction:yyyy-MM-dd},{t.Type}"));
+                            var bytes = System.Text.Encoding.UTF8.GetBytes(csv);
+                            return File(bytes, "text/csv", $"transactions_{DateTime.Now:yyyyMMddHHmmss}.csv");
+                        default:
+                            return BadRequest("Unknown mode");
+                    }
+                }
+                return Ok(await _service.GetTransactionsAsync());
+            }
+            catch { return Problem(); }
         }
 
         [HttpPost]
-        public async Task<ActionResult<TransactionDto>> CreateTransaction(TransactionCreateDto dto)
+        public async Task<IActionResult> Post(
+            [FromBody] TransactionCreateDto? dto = null,
+            string? mode = null)
         {
-            var recordId = GetRecordId();
-            var account = await _context.Accounts.FirstOrDefaultAsync(a => a.RecordId == recordId);
-            if (account == null)
-                return BadRequest("Account not found for this record");
-
-            var absValue = Math.Abs(dto.TransactionValue);
-            var transaction = new Transactions
+            if (!string.IsNullOrEmpty(mode))
             {
-                Category = dto.Category,
-                TransactionValue = dto.TransactionValue,
-                TimeOfTransaction = DateTime.UtcNow,
-                RecordId = recordId
-            };
-            _context.Transactions.Add(transaction);
-            account.Balance += dto.TransactionValue;
-            await _context.SaveChangesAsync();
-
-            var restrictions = await _context.Restrictions
-                .Where(r => r.RecordId == recordId && r.Category == dto.Category)
-                .ToListAsync();
-            var moneySpent = await _context.Transactions
-                .Where(t => t.RecordId == recordId && t.Category == dto.Category)
-                .SumAsync(t => Math.Abs(t.TransactionValue));
-            foreach (var r in restrictions)
-                r.MoneySpent = moneySpent;
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetAllTransactions), new { id = transaction.Id }, new TransactionDto
-            {
-                Id = transaction.Id,
-                Category = transaction.Category ?? string.Empty,
-                TransactionValue = transaction.TransactionValue,
-                TimeOfTransaction = transaction.TimeOfTransaction
-            });
-        }
-
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateTransaction(int id, TransactionUpdateDto dto)
-        {
-            var transaction = await _context.Transactions.FindAsync(id);
-            if (transaction == null) return NotFound();
-
-            var oldValue = Math.Abs(transaction.TransactionValue);
-            var oldCategory = transaction.Category;
-            var recordId = transaction.RecordId;
-
-            transaction.Category = dto.Category ?? transaction.Category;
-            transaction.TransactionValue = dto.TransactionValue ?? transaction.TransactionValue;
-            var newValue = Math.Abs(transaction.TransactionValue);
-
-            var account = await _context.Accounts.FirstOrDefaultAsync(a => a.RecordId == recordId);
-            if (account != null)
-            {
-                account.Balance = account.Balance - oldValue + newValue;
+                switch (mode.ToLower())
+                {
+                    case "import":
+                        var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+                        var file = Request.Form.Files.FirstOrDefault();
+                        if (file == null || file.Length == 0)
+                            return BadRequest("Файл не загружен");
+                        using (var reader = new StreamReader(file.OpenReadStream()))
+                        {
+                            var lines = new List<string>();
+                            while (!reader.EndOfStream)
+                                lines.Add(await reader.ReadLineAsync() ?? "");
+                            var recordId = await _service.GetUserRecordId(userId);
+                            foreach (var line in lines.Skip(1))
+                            {
+                                var parts = line.Split(',');
+                                if (parts.Length < 5) continue;
+                                var importDto = new TransactionCreateDto
+                                {
+                                    Category = parts[1],
+                                    TransactionValue = decimal.TryParse(parts[2], out var v) ? v : 0,
+                                    RecordId = recordId,
+                                    Type = Enum.TryParse<TransactionType>(parts[4], out var t) ? t : TransactionType.Expense
+                                };
+                                await _service.CreateTransactionAsync(importDto);
+                            }
+                        }
+                        return Ok("Импорт завершён");
+                    case "archive":
+                        if (!Request.Query.ContainsKey("before"))
+                            return BadRequest("before required");
+                        if (!DateTime.TryParse(Request.Query["before"], out var before))
+                            return BadRequest("Некорректная дата before");
+                        var count = await _service.ArchiveOldTransactionsAsync(before);
+                        return Ok($"В архив отправлено: {count} транзакций");
+                    default:
+                        return BadRequest("Unknown mode");
+                }
             }
-
-            var restrictions = await _context.Restrictions
-                .Where(r => r.RecordId == recordId && r.Category == transaction.Category)
-                .ToListAsync();
-            var moneySpent = await _context.Transactions
-                .Where(t => t.RecordId == recordId && t.Category == transaction.Category)
-                .SumAsync(t => Math.Abs(t.TransactionValue));
-            foreach (var r in restrictions)
-                r.MoneySpent = moneySpent;
-
-            if (oldCategory != transaction.Category)
+            if (dto == null)
+                return BadRequest("Данные не переданы");
+            if (!Enum.IsDefined(typeof(TransactionType), dto.Type))
+                return BadRequest("Некорректный тип транзакции (Type)");
+            try
             {
-                var oldRestrictions = await _context.Restrictions
-                    .Where(r => r.RecordId == recordId && r.Category == oldCategory)
-                    .ToListAsync();
-                var oldMoneySpent = await _context.Transactions
-                    .Where(t => t.RecordId == recordId && t.Category == oldCategory)
-                    .SumAsync(t => Math.Abs(t.TransactionValue));
-                foreach (var r in oldRestrictions)
-                    r.MoneySpent = oldMoneySpent;
+                var created = await _service.CreateTransactionAsync(dto);
+                return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
             }
-
-            await _context.SaveChangesAsync();
-            return Ok(new TransactionDto
-            {
-                Id = transaction.Id,
-                Category = transaction.Category ?? string.Empty,
-                TransactionValue = transaction.TransactionValue,
-                TimeOfTransaction = transaction.TimeOfTransaction
-            });
+            catch { return Problem(); }
         }
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteTransaction(int id)
+        [HttpPut]
+        public async Task<IActionResult> Put(int id, [FromBody] TransactionUpdateDto dto)
         {
-            var transaction = await _context.Transactions.FindAsync(id);
-            if (transaction == null) return NotFound();
-            var recordId = transaction.RecordId;
-            var category = transaction.Category;
-            var value = Math.Abs(transaction.TransactionValue);
-            _context.Transactions.Remove(transaction);
-            await _context.SaveChangesAsync();
-            var account = await _context.Accounts.FirstOrDefaultAsync(a => a.RecordId == recordId);
-            if (account != null)
+            if (dto.Type.HasValue && !Enum.IsDefined(typeof(TransactionType), dto.Type.Value))
+                return BadRequest("Некорректный тип транзакции (Type)");
+            try
             {
-                account.Balance -= value;
+                var ok = await _service.UpdateTransactionAsync(id, dto);
+                if (!ok) return NotFound();
+                return NoContent();
             }
-            var restrictions = await _context.Restrictions
-                .Where(r => r.RecordId == recordId && r.Category == category)
-                .ToListAsync();
-            var moneySpent = await _context.Transactions
-                .Where(t => t.RecordId == recordId && t.Category == category)
-                .SumAsync(t => Math.Abs(t.TransactionValue));
-            foreach (var r in restrictions)
-                r.MoneySpent = moneySpent;
-            await _context.SaveChangesAsync();
-            return NoContent();
+            catch { return Problem(); }
         }
 
-        [HttpGet("summary")]
-        public async Task<ActionResult<TransactionSummaryDto>> GetTransactionSummary()
+        [HttpDelete]
+        public async Task<IActionResult> Delete(int id)
         {
-            var recordId = GetRecordId();
-            var transactions = await _context.Transactions.Where(t => t.RecordId == recordId).ToListAsync();
-
-            return new TransactionSummaryDto
+            try
             {
-                TotalTransactions = transactions.Count,
-                TotalAmount = transactions.Sum(t => t.TransactionValue)
-            };
-        }
-
-        [HttpGet("report/{recordId}")]
-        public async Task<ActionResult<IEnumerable<TransactionReportDto>>> GetTransactionReport(int recordId)
-        {
-            var record = await _context.Records.Include(r => r.Transactions).FirstOrDefaultAsync(r => r.Id == recordId);
-            if (record == null) return NotFound("Record not found");
-
-            var report = record.Transactions.Select(t => new TransactionReportDto
-            {
-                TransactionId = t.Id,
-                Category = t.Category,
-                Value = t.TransactionValue,
-                Date = t.TimeOfTransaction
-            }).ToList();
-
-            return Ok(report);
-        }
-
-        private int GetRecordId()
-        {
-            var recordIdClaim = User.FindFirst("RecordId");
-            if (recordIdClaim == null)
-            {
-                throw new NullReferenceException("RecordId claim is missing.");
+                var ok = await _service.DeleteTransactionAsync(id);
+                if (!ok) return NotFound();
+                return NoContent();
             }
-            return int.Parse(recordIdClaim.Value);
+            catch { return Problem(); }
         }
     }
 }
