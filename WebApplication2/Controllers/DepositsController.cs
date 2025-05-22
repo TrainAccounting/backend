@@ -1,9 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Trainacc.Data;
-using Trainacc.Models;
 using Trainacc.Filters;
+using Trainacc.Models;
+using Trainacc.Services;
 
 namespace Trainacc.Controllers
 {
@@ -14,156 +13,75 @@ namespace Trainacc.Controllers
     [ServiceFilter(typeof(ETagFilter))]
     public class DepositsController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly DepositsService _service;
+        public DepositsController(DepositsService service) => _service = service;
 
-        public DepositsController(AppDbContext context) => _context = context;
-
-        [HttpGet("by-record/{recordId}")]
-        public async Task<ActionResult<IEnumerable<DepositDto>>> GetDepositsByRecord(int recordId) =>
-            await _context.Deposits
-                .Where(d => d.RecordId == recordId)
-                .Select(d => new DepositDto
-                {
-                    Id = d.Id,
-                    NameOfDeposit = d.NameOfDeposit,
-                    DepositStartValue = d.DepositStartValue,
-                    DepositCurrentValue = d.DepositCurrentValue,
-                    DateOfOpening = d.DateOfOpening,
-                    PeriodOfPayment = d.PeriodOfPayment,
-                    InterestRate = d.InterestRate,
-                    Capitalisation = d.Capitalisation,
-                    Amount = d.Amount,
-                    PayType = d.PayType,
-                    IsActive = d.IsActive
-                })
-                .ToListAsync();
-
-        [HttpGet("all")]
-        public async Task<ActionResult<IEnumerable<DepositDto>>> GetAllDeposits()
+        [HttpGet]
+        public async Task<IActionResult> Get(
+            int? id = null,
+            string? mode = null,
+            int? recordId = null)
         {
-            var recordId = GetRecordId();
-            return await _context.Deposits
-                .Where(d => d.RecordId == recordId)
-                .Select(d => new DepositDto
+            try
+            {
+                if (id.HasValue)
                 {
-                    Id = d.Id,
-                    NameOfDeposit = d.NameOfDeposit,
-                    DepositStartValue = d.DepositStartValue,
-                    DepositCurrentValue = d.DepositCurrentValue,
-                    DateOfOpening = d.DateOfOpening,
-                    PeriodOfPayment = d.PeriodOfPayment,
-                    InterestRate = d.InterestRate,
-                    Capitalisation = d.Capitalisation,
-                    PayType = d.PayType
-                })
-                .ToListAsync();
+                    var result = await _service.GetDepositAsync(id.Value);
+                    if (result == null) return NotFound();
+                    return Ok(result);
+                }
+                if (!string.IsNullOrEmpty(mode))
+                {
+                    switch (mode.ToLower())
+                    {
+                        case "by-record":
+                            if (recordId.HasValue)
+                                return Ok(await _service.GetDepositsByRecordAsync(recordId.Value));
+                            return BadRequest("recordId required");
+                        default:
+                            return BadRequest("Unknown mode");
+                    }
+                }
+                return Ok(await _service.GetDepositsAsync());
+            }
+            catch { return Problem(); }
         }
 
         [HttpPost]
-        public async Task<IActionResult> CreateDeposit([FromBody] DepositDto dto)
+        public async Task<IActionResult> Post([FromBody] DepositDto? dto = null)
         {
-            var recordId = GetRecordId();
-
-            var deposit = new Deposit
+            if (dto == null)
+                return BadRequest("Данные не переданы");
+            try
             {
-                NameOfDeposit = dto.NameOfDeposit,
-                DepositStartValue = dto.DepositStartValue,
-                DepositCurrentValue = dto.DepositCurrentValue,
-                DateOfOpening = dto.DateOfOpening,
-                PeriodOfPayment = dto.PeriodOfPayment,
-                InterestRate = dto.InterestRate,
-                Capitalisation = dto.Capitalisation,
-                Amount = dto.Amount,
-                PayType = dto.PayType,
-                IsActive = dto.IsActive,
-                RecordId = recordId
-            };
-            _context.Deposits.Add(deposit);
-            await _context.SaveChangesAsync();
-
-            var account = await _context.Accounts.FirstOrDefaultAsync(a => a.RecordId == recordId);
-            if (account != null && deposit.Amount > 0)
-            {
-                var transaction = new Transactions
-                {
-                    Category = "Deposit",
-                    TransactionValue = deposit.Amount,
-                    TimeOfTransaction = DateTime.UtcNow,
-                    RecordId = recordId
-                };
-                _context.Transactions.Add(transaction);
-                account.Balance += Math.Abs(deposit.Amount);
-                await _context.SaveChangesAsync();
+                var created = await _service.CreateDepositAsync(dto);
+                return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
             }
-
-            return CreatedAtAction(nameof(GetAllDeposits), new { id = deposit.Id }, dto);
+            catch { return Problem(); }
         }
 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateDeposit(int id, DepositUpdateDto dto)
+        [HttpPut]
+        public async Task<IActionResult> Put(int id, [FromBody] DepositUpdateDto dto)
         {
-            var deposit = await _context.Deposits.FindAsync(id);
-            if (deposit == null) return NotFound();
-
-            deposit.NameOfDeposit = dto.NameOfDeposit ?? deposit.NameOfDeposit;
-            deposit.DepositCurrentValue = dto.DepositCurrentValue ?? deposit.DepositCurrentValue;
-            deposit.PeriodOfPayment = dto.PeriodOfPayment ?? deposit.PeriodOfPayment;
-            deposit.InterestRate = dto.InterestRate ?? deposit.InterestRate;
-            deposit.Capitalisation = dto.Capitalisation ?? deposit.Capitalisation;
-
-            await _context.SaveChangesAsync();
-            return NoContent();
-        }
-
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteDeposit(int id)
-        {
-            var deposit = await _context.Deposits.FindAsync(id);
-            if (deposit == null) return NotFound();
-
-            _context.Deposits.Remove(deposit);
-            await _context.SaveChangesAsync();
-            return NoContent();
-        }
-
-        [HttpGet("summary")]
-        public async Task<ActionResult<DepositSummaryDto>> GetDepositSummary()
-        {
-            var recordId = GetRecordId();
-            var deposits = await _context.Deposits.Where(d => d.RecordId == recordId).ToListAsync();
-
-            return new DepositSummaryDto
+            try
             {
-                TotalDeposits = (int)deposits.Sum(d => d.DepositCurrentValue),
-                ActiveDeposits = deposits.Count(d => d.IsActive)
-            };
-        }
-
-        [HttpGet("report/{recordId}")]
-        public async Task<ActionResult<IEnumerable<DepositReportDto>>> GetDepositReport(int recordId)
-        {
-            var record = await _context.Records.Include(r => r.Deposits).FirstOrDefaultAsync(r => r.Id == recordId);
-            if (record == null) return NotFound("Record not found");
-
-            var report = record.Deposits.Select(d => new DepositReportDto
-            {
-                DepositId = d.Id,
-                Name = d.NameOfDeposit,
-                CurrentValue = d.DepositCurrentValue,
-                InterestRate = d.InterestRate
-            }).ToList();
-
-            return Ok(report);
-        }
-
-        private int GetRecordId()
-        {
-            var recordIdClaim = User.FindFirst("RecordId");
-            if (recordIdClaim == null)
-            {
-                throw new NullReferenceException("RecordId claim is missing.");
+                var ok = await _service.UpdateDepositAsync(id, dto);
+                if (!ok) return NotFound();
+                return NoContent();
             }
-            return int.Parse(recordIdClaim.Value);
+            catch { return Problem(); }
+        }
+
+        [HttpDelete]
+        public async Task<IActionResult> Delete(int id)
+        {
+            try
+            {
+                var ok = await _service.DeleteDepositAsync(id);
+                if (!ok) return NotFound();
+                return NoContent();
+            }
+            catch { return Problem(); }
         }
     }
 }

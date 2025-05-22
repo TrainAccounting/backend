@@ -42,8 +42,8 @@ namespace Trainacc.Filters
     {
         public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
         {
-            context.HttpContext.Response.Headers.Add("X-ETag", Guid.NewGuid().ToString());
-            await next();
+            context.HttpContext.Response.Headers.Append("X-ETag", Guid.NewGuid().ToString());
+            await next(); 
         }
     }
 }

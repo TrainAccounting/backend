@@ -62,6 +62,9 @@ namespace Trainacc.Data
                 .HasForeignKey(c => c.RecordId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            modelBuilder.Entity<Transactions>()
+                .Property(t => t.Type)
+                .HasConversion<string>();
         }
     }
 }

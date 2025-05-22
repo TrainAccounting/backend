@@ -52,6 +52,11 @@ namespace Trainacc.Models
         public decimal Balance { get; set; }
         public Record? Record { get; set; }
     }
+    public enum TransactionType
+    {
+        Income = 0,
+        Expense = 1
+    }
     public class Transactions
     {
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
@@ -60,7 +65,11 @@ namespace Trainacc.Models
         public decimal TransactionValue { get; set; }
         public DateTime TimeOfTransaction { get; set; }
         public int RecordId { get; set; }
+        public TransactionType Type { get; set; }
         public Record? Record { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? UpdatedAt { get; set; }
+        public DateTime? DeletedAt { get; set; }
     }
     public class Deposit
     {
@@ -97,6 +106,6 @@ namespace Trainacc.Models
 
     public enum PaymentType
     {
-        Monthly
+        Monthly = 0
     }
 }

@@ -1,8 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Trainacc.Data;
 using Trainacc.Models;
 using Trainacc.Filters;
+using Trainacc.Services;
 
 namespace Trainacc.Controllers
 {
@@ -12,153 +11,54 @@ namespace Trainacc.Controllers
     [ServiceFilter(typeof(ETagFilter))]
     public class UsersController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly UsersService _service;
         private readonly ILogger<UsersController> _logger;
 
-        public UsersController(AppDbContext context, ILogger<UsersController> logger)
+        public UsersController(UsersService service, ILogger<UsersController> logger)
         {
-            _context = context;
+            _service = service;
             _logger = logger;
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<UserDto>>> GetUsers()
+        public async Task<IActionResult> Get(int? id = null)
         {
-            return await _context.Users
-                .Select(u => new UserDto
-                {
-                    Id = u.Id,
-                    FIO = u.FIO,
-                    Email = u.Email,
-                    Phone = u.Phone
-
-                })
-                .ToListAsync();
-        }
-
-        [HttpGet("{id}")]
-        public async Task<ActionResult<UserDto>> GetUser(int id)
-        {
-            var user = await _context.Users.FindAsync(id);
-
-            if (user == null)
-            {
-                return NotFound();
-            }
-
-            return new UserDto
-            {
-                Id = user.Id,
-                FIO = user.FIO,
-                Email = user.Email,
-                Phone = user.Phone,
-                Role = user.Role
-            };
-        }
-
-        [HttpGet("{id}/full")]
-        public async Task<ActionResult<UserWithRecordsDto>> GetUserWithRecords(int id)
-        {
-            var user = await _context.Users
-                .Include(u => u.Records)
-                .ThenInclude(r => r.Accounts)
-                .Include(u => u.Records)
-                .ThenInclude(r => r.Transactions)
-                .FirstOrDefaultAsync(u => u.Id == id);
-
-            if (user == null)
-            {
-                return NotFound();
-            }
-
-            return new UserWithRecordsDto
-            {
-                Id = user.Id,
-                FIO = user.FIO,
-                Email = user.Email,
-                Phone = user.Phone,
-                Records = user.Records.Select(r => new RecordSummaryDto
-                {
-                    Id = r.Id,
-                    NameOfRecord = r.NameOfRecord,
-                    DateOfCreation = r.DateOfCreation
-                }).ToList()
-            };
-        }
-
-        [HttpPut("{id}")]
-        [ServiceFilter(typeof(ValidateModelAttribute))]
-        public async Task<IActionResult> UpdateUser(int id, UserUpdateDto userDto)
-        {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null)
-            {
-                return NotFound();
-            }
-
-            if (!string.IsNullOrWhiteSpace(userDto.FIO))
-                user.FIO = userDto.FIO;
-
-            if (!string.IsNullOrWhiteSpace(userDto.Email))
-                user.Email = userDto.Email;
-
-            if (!string.IsNullOrWhiteSpace(userDto.Phone))
-                user.Phone = userDto.Phone;
-
             try
             {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!UserExists(id))
+                if (id.HasValue)
                 {
-                    return NotFound();
+                    var result = await _service.GetUserAsync(id.Value);
+                    if (result == null) return NotFound();
+                    return Ok(result);
                 }
-                throw;
+                return Ok(await _service.GetUsersAsync());
             }
-
-            return NoContent();
+            catch { return Problem(); }
         }
 
-        private bool UserExists(int id)
+        [HttpPut]
+        [ServiceFilter(typeof(ValidateModelAttribute))]
+        public async Task<IActionResult> Put(int id, [FromBody] UserUpdateDto userDto)
         {
-            return _context.Users.Any(e => e.Id == id);
+            try
+            {
+                var ok = await _service.UpdateUserAsync(id, userDto);
+                if (!ok) return NotFound();
+                return NoContent();
+            }
+            catch { return Problem(); }
         }
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteUser(int id)
+        [HttpDelete]
+        public async Task<IActionResult> Delete(int id)
         {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null)
+            try
             {
-                return NotFound();
+                var ok = await _service.DeleteUserAsync(id);
+                if (!ok) return NotFound();
+                return NoContent();
             }
-
-            _context.Users.Remove(user);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
-        }
-
-        [HttpGet("{id}/records")]
-        public async Task<ActionResult<IEnumerable<RecordDto>>> GetUserRecords(int id)
-        {
-            var user = await _context.Users
-                .Include(u => u.Records)
-                .FirstOrDefaultAsync(u => u.Id == id);
-
-            if (user == null)
-            {
-                return NotFound();
-            }
-
-            return user.Records.Select(r => new RecordDto
-            {
-                Id = r.Id,
-                NameOfRecord = r.NameOfRecord,
-                DateOfCreation = r.DateOfCreation
-            }).ToList();
+            catch { return Problem(); }
         }
     }
 }
