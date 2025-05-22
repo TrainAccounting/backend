@@ -20,10 +20,17 @@ namespace Trainacc.Models
 
     public class TransactionCreateDto
     {
-        [Required] public string? Category { get; set; }
-        [Required] public decimal TransactionValue { get; set; }
-        [Required] public int RecordId { get; set; }
-        [Required] public TransactionType Type { get; set; }
+        [Required]
+        public string? Category { get; set; }
+
+        [Required]
+        public decimal TransactionValue { get; set; }
+
+        [Required]
+        public int RecordId { get; set; }
+
+        [Required]
+        public TransactionType Type { get; set; }
     }
 
     public class TransactionUpdateDto

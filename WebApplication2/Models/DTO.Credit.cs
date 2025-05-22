@@ -17,10 +17,20 @@ namespace Trainacc.Models
 
     public class CreditCreateDto
     {
-        [Required] public string? NameOfCredit { get; set; }
-        [Required] public decimal CreditCurrentValue { get; set; }
-        [Required] public int PeriodOfPayment { get; set; }
-        [Required] public decimal InterestRate { get; set; }
+        [Required]
+        public string? NameOfCredit { get; set; }
+
+        [Required]
+        public decimal CreditCurrentValue { get; set; }
+
+        [Required]
+        public int PeriodOfPayment { get; set; }
+
+        [Required]
+        public decimal InterestRate { get; set; }
+
+        [Required]
+        public PaymentType PayType { get; set; } = 0;
     }
 
     public class CreditUpdateDto

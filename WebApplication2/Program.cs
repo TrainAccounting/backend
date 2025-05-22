@@ -69,6 +69,7 @@ builder.Services.AddSwaggerGen(c =>
             new string[]{}
         }
     });
+    c.OperationFilter<Trainacc.Filters.ParamDescriptionFilter>();
 });
 
 builder.Services.AddAuthorization();

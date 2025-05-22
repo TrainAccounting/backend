@@ -17,37 +17,51 @@ namespace Trainacc.Controllers
         public DepositsController(DepositsService service) => _service = service;
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<DepositDto>>> GetDeposits()
-        {
-            try { return await _service.GetDepositsAsync(); }
-            catch { return Problem(); }
-        }
-
-        [HttpGet("{id}")]
-        public async Task<ActionResult<DepositDto>> GetDeposit(int id)
+        public async Task<IActionResult> Get(
+            int? id = null,
+            string? mode = null,
+            int? recordId = null)
         {
             try
             {
-                var result = await _service.GetDepositAsync(id);
-                if (result == null) return NotFound();
-                return result;
+                if (id.HasValue)
+                {
+                    var result = await _service.GetDepositAsync(id.Value);
+                    if (result == null) return NotFound();
+                    return Ok(result);
+                }
+                if (!string.IsNullOrEmpty(mode))
+                {
+                    switch (mode.ToLower())
+                    {
+                        case "by-record":
+                            if (recordId.HasValue)
+                                return Ok(await _service.GetDepositsByRecordAsync(recordId.Value));
+                            return BadRequest("recordId required");
+                        default:
+                            return BadRequest("Unknown mode");
+                    }
+                }
+                return Ok(await _service.GetDepositsAsync());
             }
             catch { return Problem(); }
         }
 
         [HttpPost]
-        public async Task<ActionResult<DepositDto>> CreateDeposit(DepositDto dto)
+        public async Task<IActionResult> Post([FromBody] DepositDto? dto = null)
         {
+            if (dto == null)
+                return BadRequest("Данные не переданы");
             try
             {
                 var created = await _service.CreateDepositAsync(dto);
-                return CreatedAtAction(nameof(GetDeposit), new { id = created.Id }, created);
+                return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
             }
             catch { return Problem(); }
         }
 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateDeposit(int id, DepositUpdateDto dto)
+        [HttpPut]
+        public async Task<IActionResult> Put(int id, [FromBody] DepositUpdateDto dto)
         {
             try
             {
@@ -58,8 +72,8 @@ namespace Trainacc.Controllers
             catch { return Problem(); }
         }
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteDeposit(int id)
+        [HttpDelete]
+        public async Task<IActionResult> Delete(int id)
         {
             try
             {
@@ -67,13 +81,6 @@ namespace Trainacc.Controllers
                 if (!ok) return NotFound();
                 return NoContent();
             }
-            catch { return Problem(); }
-        }
-
-        [HttpGet("by-record/{recordId}")]
-        public async Task<ActionResult<IEnumerable<DepositDto>>> GetDepositsByRecord(int recordId)
-        {
-            try { return await _service.GetDepositsByRecordAsync(recordId); }
             catch { return Problem(); }
         }
     }

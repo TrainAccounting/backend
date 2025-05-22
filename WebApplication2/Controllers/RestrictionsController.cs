@@ -17,37 +17,55 @@ namespace Trainacc.Controllers
         public RestrictionsController(RestrictionsService service) => _service = service;
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<RestrictionDto>>> GetRestrictions()
-        {
-            try { return await _service.GetRestrictionsAsync(); }
-            catch { return Problem(); }
-        }
-
-        [HttpGet("{id}")]
-        public async Task<ActionResult<RestrictionDto>> GetRestriction(int id)
+        public async Task<IActionResult> Get(
+            int? id = null,
+            string? mode = null,
+            int? recordId = null)
         {
             try
             {
-                var result = await _service.GetRestrictionAsync(id);
-                if (result == null) return NotFound();
-                return result;
+                var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+                if (id.HasValue)
+                {
+                    var result = await _service.GetRestrictionAsync(id.Value);
+                    if (result == null) return NotFound();
+                    return Ok(result);
+                }
+                if (!string.IsNullOrEmpty(mode))
+                {
+                    switch (mode.ToLower())
+                    {
+                        case "by-record":
+                            if (recordId.HasValue)
+                                return Ok(await _service.GetRestrictionsByRecordAsync(recordId.Value));
+                            return BadRequest("recordId required");
+                        case "exceeded":
+                            var result = await _service.GetExceededRestrictionsAsync(userId);
+                            return Ok(result);
+                        default:
+                            return BadRequest("Unknown mode");
+                    }
+                }
+                return Ok(await _service.GetRestrictionsAsync());
             }
             catch { return Problem(); }
         }
 
         [HttpPost]
-        public async Task<ActionResult<RestrictionDto>> CreateRestriction(RestrictionDto dto)
+        public async Task<IActionResult> Post([FromBody] RestrictionDto? dto = null)
         {
+            if (dto == null)
+                return BadRequest("Данные не переданы");
             try
             {
                 var created = await _service.CreateRestrictionAsync(dto);
-                return CreatedAtAction(nameof(GetRestriction), new { id = created.Id }, created);
+                return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
             }
             catch { return Problem(); }
         }
 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateRestriction(int id, RestrictionUpdateDto dto)
+        [HttpPut]
+        public async Task<IActionResult> Put(int id, [FromBody] RestrictionUpdateDto dto)
         {
             try
             {
@@ -58,33 +76,14 @@ namespace Trainacc.Controllers
             catch { return Problem(); }
         }
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteRestriction(int id)
+        [HttpDelete]
+        public async Task<IActionResult> Delete(int id)
         {
             try
             {
                 var ok = await _service.DeleteRestrictionAsync(id);
                 if (!ok) return NotFound();
                 return NoContent();
-            }
-            catch { return Problem(); }
-        }
-
-        [HttpGet("by-record/{recordId}")]
-        public async Task<ActionResult<IEnumerable<RestrictionDto>>> GetRestrictionsByRecord(int recordId)
-        {
-            try { return await _service.GetRestrictionsByRecordAsync(recordId); }
-            catch { return Problem(); }
-        }
-
-        [HttpGet("exceeded")]
-        public async Task<ActionResult<IEnumerable<RestrictionDto>>> GetExceededRestrictions()
-        {
-            try
-            {
-                var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
-                var result = await _service.GetExceededRestrictionsAsync(userId);
-                return Ok(result);
             }
             catch { return Problem(); }
         }

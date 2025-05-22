@@ -19,11 +19,22 @@ namespace Trainacc.Models
 
     public class DepositCreateDto
     {
-        [Required] public string? NameOfDeposit { get; set; }
-        [Required] public decimal DepositStartValue { get; set; }
-        [Required] public int PeriodOfPayment { get; set; }
-        [Required] public decimal InterestRate { get; set; }
-        [Required] public bool Capitalisation { get; set; }
+        [Required]
+        public string? NameOfDeposit { get; set; }
+
+        [Required]
+        public decimal DepositStartValue { get; set; }
+
+        [Required]
+        public int PeriodOfPayment { get; set; }
+
+        [Required]
+        public decimal InterestRate { get; set; }
+
+        [Required]
+        public bool Capitalisation { get; set; }
+        [Required]
+        public PaymentType PayType { get; set; } = 0;
     }
 
     public class DepositUpdateDto

@@ -21,27 +21,24 @@ namespace Trainacc.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<UserDto>>> GetUsers()
-        {
-            try { return await _service.GetUsersAsync(); }
-            catch { return Problem(); }
-        }
-
-        [HttpGet("{id}")]
-        public async Task<ActionResult<UserDto>> GetUser(int id)
+        public async Task<IActionResult> Get(int? id = null)
         {
             try
             {
-                var result = await _service.GetUserAsync(id);
-                if (result == null) return NotFound();
-                return result;
+                if (id.HasValue)
+                {
+                    var result = await _service.GetUserAsync(id.Value);
+                    if (result == null) return NotFound();
+                    return Ok(result);
+                }
+                return Ok(await _service.GetUsersAsync());
             }
             catch { return Problem(); }
         }
 
-        [HttpPut("{id}")]
+        [HttpPut]
         [ServiceFilter(typeof(ValidateModelAttribute))]
-        public async Task<IActionResult> UpdateUser(int id, UserUpdateDto userDto)
+        public async Task<IActionResult> Put(int id, [FromBody] UserUpdateDto userDto)
         {
             try
             {
@@ -52,8 +49,8 @@ namespace Trainacc.Controllers
             catch { return Problem(); }
         }
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteUser(int id)
+        [HttpDelete]
+        public async Task<IActionResult> Delete(int id)
         {
             try
             {

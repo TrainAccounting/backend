@@ -54,8 +54,8 @@ namespace Trainacc.Models
     }
     public enum TransactionType
     {
-        Income,
-        Expense
+        Income = 0,
+        Expense = 1
     }
     public class Transactions
     {
@@ -106,6 +106,6 @@ namespace Trainacc.Models
 
     public enum PaymentType
     {
-        Monthly
+        Monthly = 0
     }
 }

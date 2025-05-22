@@ -14,9 +14,12 @@ namespace Trainacc.Models
 
     public class RestrictionCreateDto
     {
-        [Required] public string? Category { get; set; }
-        [Required] public decimal RestrictionValue { get; set; }
-        [Required] public int RecordId { get; set; }
+        [Required]
+        public string? Category { get; set; }
+        [Required]
+        public decimal RestrictionValue { get; set; }
+        [Required]
+        public int RecordId { get; set; }
     }
 
     public class RestrictionUpdateDto

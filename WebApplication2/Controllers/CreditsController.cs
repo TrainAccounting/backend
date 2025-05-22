@@ -17,37 +17,51 @@ namespace Trainacc.Controllers
         public CreditsController(CreditsService service) => _service = service;
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<CreditDto>>> GetCredits()
-        {
-            try { return await _service.GetCreditsAsync(); }
-            catch { return Problem(); }
-        }
-
-        [HttpGet("{id}")]
-        public async Task<ActionResult<CreditDto>> GetCredit(int id)
+        public async Task<IActionResult> Get(
+            int? id = null,
+            string? mode = null,
+            int? recordId = null)
         {
             try
             {
-                var result = await _service.GetCreditAsync(id);
-                if (result == null) return NotFound();
-                return result;
+                if (id.HasValue)
+                {
+                    var result = await _service.GetCreditAsync(id.Value);
+                    if (result == null) return NotFound();
+                    return Ok(result);
+                }
+                if (!string.IsNullOrEmpty(mode))
+                {
+                    switch (mode.ToLower())
+                    {
+                        case "by-record":
+                            if (recordId.HasValue)
+                                return Ok(await _service.GetCreditsByRecordAsync(recordId.Value));
+                            return BadRequest("recordId required");
+                        default:
+                            return BadRequest("Unknown mode");
+                    }
+                }
+                return Ok(await _service.GetCreditsAsync());
             }
             catch { return Problem(); }
         }
 
         [HttpPost]
-        public async Task<ActionResult<CreditDto>> CreateCredit(CreditDto dto)
+        public async Task<IActionResult> Post([FromBody] CreditDto? dto = null)
         {
+            if (dto == null)
+                return BadRequest("Данные не переданы");
             try
             {
                 var created = await _service.CreateCreditAsync(dto);
-                return CreatedAtAction(nameof(GetCredit), new { id = created.Id }, created);
+                return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
             }
             catch { return Problem(); }
         }
 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateCredit(int id, CreditUpdateDto dto)
+        [HttpPut]
+        public async Task<IActionResult> Put(int id, [FromBody] CreditUpdateDto dto)
         {
             try
             {
@@ -58,8 +72,8 @@ namespace Trainacc.Controllers
             catch { return Problem(); }
         }
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteCredit(int id)
+        [HttpDelete]
+        public async Task<IActionResult> Delete(int id)
         {
             try
             {
@@ -67,13 +81,6 @@ namespace Trainacc.Controllers
                 if (!ok) return NotFound();
                 return NoContent();
             }
-            catch { return Problem(); }
-        }
-
-        [HttpGet("by-record/{recordId}")]
-        public async Task<ActionResult<IEnumerable<CreditDto>>> GetCreditsByRecord(int recordId)
-        {
-            try { return await _service.GetCreditsByRecordAsync(recordId); }
             catch { return Problem(); }
         }
     }
