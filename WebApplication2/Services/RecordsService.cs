@@ -88,5 +88,40 @@ namespace Trainacc.Services
                 })
                 .ToListAsync();
         }
+
+        public async Task<(decimal safetyPillow, decimal savingsGoal, string? savingsGoalName, bool notify)> ProcessEndOfMonthAsync(int recordId)
+        {
+            var record = await _context.Records.Include(r => r.Restrictions).Include(r => r.Transactions).FirstOrDefaultAsync(r => r.Id == recordId);
+            if (record == null) throw new Exception("Record not found");
+            var restrictions = record.Restrictions;
+            var transactions = record.Transactions.Where(t => t.TimeOfTransaction.Month == DateTime.Now.Month && t.TimeOfTransaction.Year == DateTime.Now.Year).ToList();
+            decimal overLimit = 0;
+            decimal totalSpent = 0;
+            foreach (var restriction in restrictions)
+            {
+                var spent = transactions.Where(t => t.Category == restriction.Category).Sum(t => t.TransactionValue);
+                totalSpent += spent;
+                if (spent > restriction.RestrictionValue)
+                    overLimit += spent - restriction.RestrictionValue;
+            }
+            var sumRestrictions = restrictions.Sum(r => r.RestrictionValue);
+            decimal savings = record.MonthlySalary - sumRestrictions;
+            if (overLimit == 0)
+                record.Savings += savings;
+            else
+                record.Savings += Math.Max(0, savings - overLimit);
+            if (record.Savings > 0)
+            {
+                record.SafetyPillow += record.Savings;
+                record.Savings = 0;
+            }
+            await _context.SaveChangesAsync();
+            bool notify = false;
+            if (record.SavingsGoal > 0 && record.SafetyPillow >= record.SavingsGoal * 0.25m && record.SafetyPillow < record.SavingsGoal)
+            {
+                notify = true;
+            }
+            return (record.SafetyPillow, record.SavingsGoal, record.SavingsGoalName, notify);
+        }
     }
 }

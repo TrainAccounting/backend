@@ -29,6 +29,11 @@ namespace Trainacc.Models
         public List<Transactions> Transactions { get; set; } = new List<Transactions>();
         public List<Deposit> Deposits { get; set; } = new List<Deposit>();
         public List<Credit> Credits { get; set; } = new List<Credit>();
+        public decimal MonthlySalary { get; set; } = 0; 
+        public decimal Savings { get; set; } = 0; 
+        public decimal SafetyPillow { get; set; } = 0;
+        public decimal SavingsGoal { get; set; } = 0; 
+        public string? SavingsGoalName { get; set; } 
     }
     public class Restriction
     {

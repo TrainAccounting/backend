@@ -105,5 +105,35 @@ namespace Trainacc.Services
                 })
                 .ToListAsync();
         }
+
+        public async Task ProcessMonthlyDepositsAsync()
+        {
+            var now = DateTime.UtcNow;
+            var deposits = await _context.Deposits.Where(d => d.IsActive).ToListAsync();
+            foreach (var deposit in deposits)
+            {
+                if (deposit.PeriodOfPayment <= 0 || deposit.DepositCurrentValue <= 0) continue;
+                int monthsPassed = ((now.Year - deposit.DateOfOpening.Year) * 12) + now.Month - deposit.DateOfOpening.Month;
+                if (monthsPassed >= deposit.PeriodOfPayment)
+                {
+                    deposit.IsActive = false;
+                    deposit.DateOfClose = now;
+                    continue;
+                }
+                decimal monthlyRate = deposit.InterestRate / 12m / 100m;
+                decimal interest = deposit.DepositCurrentValue * monthlyRate;
+                if (deposit.Capitalisation)
+                {
+                    deposit.DepositCurrentValue += interest;
+                }
+                else
+                {
+                    var account = await _context.Accounts.FirstOrDefaultAsync(a => a.RecordId == deposit.RecordId);
+                    if (account != null)
+                        account.Balance += interest;
+                }
+            }
+            await _context.SaveChangesAsync();
+        }
     }
 }

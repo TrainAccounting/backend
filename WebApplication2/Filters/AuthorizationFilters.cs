@@ -18,11 +18,11 @@ namespace Trainacc.Filters
                 return;
             }
 
-            if (!string.IsNullOrEmpty(_requiredRole) && !user.IsInRole(_requiredRole))
-            {
-                context.Result = new ForbidResult();
-                return;
-            }
+            // if (!string.IsNullOrEmpty(_requiredRole) && !user.IsInRole(_requiredRole))
+            // {
+            //     context.Result = new ForbidResult();
+            //     return;
+            // }
 
             await Task.CompletedTask;
         }
