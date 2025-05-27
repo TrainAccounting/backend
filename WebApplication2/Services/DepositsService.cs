@@ -25,10 +25,7 @@ namespace Trainacc.Services
                 DateOfOpening = d.DateOfOpening,
                 PeriodOfPayment = d.PeriodOfPayment,
                 InterestRate = d.InterestRate,
-                Capitalisation = d.Capitalisation,
-                Amount = d.Amount,
-                PayType = d.PayType,
-                IsActive = d.IsActive
+                Amount = d.Amount
             }).ToListAsync();
         }
 
@@ -45,15 +42,14 @@ namespace Trainacc.Services
                 DateOfOpening = d.DateOfOpening,
                 PeriodOfPayment = d.PeriodOfPayment,
                 InterestRate = d.InterestRate,
-                Capitalisation = d.Capitalisation,
-                Amount = d.Amount,
-                PayType = d.PayType,
-                IsActive = d.IsActive
+                Amount = d.Amount
             };
         }
 
         public async Task<DepositDto> CreateDepositAsync(DepositDto dto)
         {
+            if (dto.InterestRate < 0 || dto.Amount < 0)
+                throw new Exception("Ставка и сумма депозита должны быть положительными");
             var deposit = new Deposit
             {
                 NameOfDeposit = dto.NameOfDeposit,
@@ -62,11 +58,8 @@ namespace Trainacc.Services
                 DateOfOpening = dto.DateOfOpening,
                 PeriodOfPayment = dto.PeriodOfPayment,
                 InterestRate = dto.InterestRate,
-                Capitalisation = dto.Capitalisation,
                 Amount = dto.Amount,
-                PayType = dto.PayType,
-                IsActive = dto.IsActive,
-                RecordId = dto.Id
+                RecordId = dto.RecordId
             };
             _context.Deposits.Add(deposit);
             await _context.SaveChangesAsync();
@@ -82,7 +75,6 @@ namespace Trainacc.Services
             deposit.DepositCurrentValue = dto.DepositCurrentValue ?? deposit.DepositCurrentValue;
             deposit.PeriodOfPayment = dto.PeriodOfPayment ?? deposit.PeriodOfPayment;
             deposit.InterestRate = dto.InterestRate ?? deposit.InterestRate;
-            deposit.Capitalisation = dto.Capitalisation ?? deposit.Capitalisation;
             await _context.SaveChangesAsync();
             return true;
         }
@@ -109,10 +101,7 @@ namespace Trainacc.Services
                     DateOfOpening = d.DateOfOpening,
                     PeriodOfPayment = d.PeriodOfPayment,
                     InterestRate = d.InterestRate,
-                    Capitalisation = d.Capitalisation,
-                    Amount = d.Amount,
-                    PayType = d.PayType,
-                    IsActive = d.IsActive
+                    Amount = d.Amount
                 })
                 .ToListAsync();
         }

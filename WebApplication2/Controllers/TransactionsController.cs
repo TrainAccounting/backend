@@ -53,11 +53,6 @@ namespace Trainacc.Controllers
                             if (recordId.HasValue)
                                 return Ok(await _service.GetTransactionsByRecordAsync(recordId.Value));
                             return BadRequest("recordId required");
-                        case "export":
-                            var transactions = await _service.FilterTransactionsAsync(userId, type, category, from, to, null, null);
-                            var csv = "Id,Category,Value,Date,Type\n" + string.Join("\n", transactions.Select(t => $"{t.Id},{t.Category},{t.TransactionValue},{t.TimeOfTransaction:yyyy-MM-dd},{t.Type}"));
-                            var bytes = System.Text.Encoding.UTF8.GetBytes(csv);
-                            return File(bytes, "text/csv", $"transactions_{DateTime.Now:yyyyMMddHHmmss}.csv");
                         default:
                             return BadRequest("Unknown mode");
                     }
@@ -68,51 +63,8 @@ namespace Trainacc.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Post(
-            [FromBody] TransactionCreateDto? dto = null,
-            string? mode = null)
+        public async Task<IActionResult> Post([FromBody] TransactionCreateDto? dto = null)
         {
-            if (!string.IsNullOrEmpty(mode))
-            {
-                switch (mode.ToLower())
-                {
-                    case "import":
-                        var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
-                        var file = Request.Form.Files.FirstOrDefault();
-                        if (file == null || file.Length == 0)
-                            return BadRequest("Файл не загружен");
-                        using (var reader = new StreamReader(file.OpenReadStream()))
-                        {
-                            var lines = new List<string>();
-                            while (!reader.EndOfStream)
-                                lines.Add(await reader.ReadLineAsync() ?? "");
-                            var recordId = await _service.GetUserRecordId(userId);
-                            foreach (var line in lines.Skip(1))
-                            {
-                                var parts = line.Split(',');
-                                if (parts.Length < 5) continue;
-                                var importDto = new TransactionCreateDto
-                                {
-                                    Category = parts[1],
-                                    TransactionValue = decimal.TryParse(parts[2], out var v) ? v : 0,
-                                    RecordId = recordId,
-                                    Type = Enum.TryParse<TransactionType>(parts[4], out var t) ? t : TransactionType.Expense
-                                };
-                                await _service.CreateTransactionAsync(importDto);
-                            }
-                        }
-                        return Ok("Импорт завершён");
-                    case "archive":
-                        if (!Request.Query.ContainsKey("before"))
-                            return BadRequest("before required");
-                        if (!DateTime.TryParse(Request.Query["before"], out var before))
-                            return BadRequest("Некорректная дата before");
-                        var count = await _service.ArchiveOldTransactionsAsync(before);
-                        return Ok($"В архив отправлено: {count} транзакций");
-                    default:
-                        return BadRequest("Unknown mode");
-                }
-            }
             if (dto == null)
                 return BadRequest("Данные не переданы");
             if (!Enum.IsDefined(typeof(TransactionType), dto.Type))

@@ -21,10 +21,7 @@ namespace Trainacc.Services
                 Id = r.Id,
                 Category = r.Category,
                 RestrictionValue = r.RestrictionValue,
-                MoneySpent = r.MoneySpent,
-                Name = r.Name,
-                Description = r.Description,
-                IsActive = r.IsActive
+                MoneySpent = r.MoneySpent
             }).ToListAsync();
         }
 
@@ -37,10 +34,7 @@ namespace Trainacc.Services
                 Id = r.Id,
                 Category = r.Category,
                 RestrictionValue = r.RestrictionValue,
-                MoneySpent = r.MoneySpent,
-                Name = r.Name,
-                Description = r.Description,
-                IsActive = r.IsActive
+                MoneySpent = r.MoneySpent
             };
         }
 
@@ -48,9 +42,6 @@ namespace Trainacc.Services
         {
             var restriction = new Restriction
             {
-                Name = dto.Name,
-                Description = dto.Description,
-                IsActive = dto.IsActive,
                 RecordId = dto.Id,
                 Category = dto.Category,
                 RestrictionValue = dto.RestrictionValue,
@@ -90,39 +81,23 @@ namespace Trainacc.Services
                     Id = r.Id,
                     Category = r.Category,
                     RestrictionValue = r.RestrictionValue,
-                    MoneySpent = r.MoneySpent,
-                    Name = r.Name,
-                    Description = r.Description,
-                    IsActive = r.IsActive
+                    MoneySpent = r.MoneySpent
                 })
                 .ToListAsync();
         }
 
-        public async Task UpdateRestrictionsSpentAsync(int recordId, string? category, decimal delta)
-        {
-            var restriction = await _context.Restrictions.FirstOrDefaultAsync(r => r.RecordId == recordId && r.Category == category && r.IsActive);
-            if (restriction != null)
-            {
-                restriction.MoneySpent += delta;
-                await _context.SaveChangesAsync();
-            }
-        }
-
         public async Task<List<RestrictionDto>> GetExceededRestrictionsAsync(int userId)
         {
-            var record = await _context.Records.FirstOrDefaultAsync(r => r.UserId == userId);
-            if (record == null) return new List<RestrictionDto>();
+            var records = await _context.Records.Where(r => r.UserId == userId).ToListAsync();
+            var recordIds = records.Select(r => r.Id).ToList();
             return await _context.Restrictions
-                .Where(r => r.RecordId == record.Id && r.IsActive && r.MoneySpent > r.RestrictionValue)
+                .Where(r => recordIds.Contains(r.RecordId) && r.MoneySpent > r.RestrictionValue)
                 .Select(r => new RestrictionDto
                 {
                     Id = r.Id,
                     Category = r.Category,
                     RestrictionValue = r.RestrictionValue,
-                    MoneySpent = r.MoneySpent,
-                    Name = r.Name,
-                    Description = r.Description,
-                    IsActive = r.IsActive
+                    MoneySpent = r.MoneySpent
                 })
                 .ToListAsync();
         }

@@ -7,6 +7,7 @@ using Trainacc.Data;
 using Trainacc.Filters;
 using Trainacc.Services;
 using System.Security.Claims;
+using Trainacc.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -77,8 +78,8 @@ builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<LogActionFilter>();
 builder.Services.AddScoped<ETagFilter>();
 builder.Services.AddScoped<ValidateModelAttribute>();
-//builder.Services.AddScoped<RoleBasedAuthFilter>(_ =>
-//    new RoleBasedAuthFilter("Admin"));
+builder.Services.AddScoped<RoleBasedAuthFilter>(_ =>
+    new RoleBasedAuthFilter("Admin"));
 builder.Services.AddScoped<Trainacc.Services.UsersService>();
 builder.Services.AddScoped<Trainacc.Services.AccountsService>();
 builder.Services.AddScoped<Trainacc.Services.CreditsService>();
@@ -97,7 +98,7 @@ builder.Services.AddCors(option =>
 {
     option.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins("http://localhost:5173");
+        policy.WithOrigins("http://localhost:3000");
         policy.AllowAnyHeader();
         policy.AllowAnyMethod();
     });
@@ -121,6 +122,8 @@ app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseMiddleware<Trainacc.Middleware.ErrorHandlingMiddleware>();
 
 app.MapControllers();
 

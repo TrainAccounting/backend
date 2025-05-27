@@ -44,64 +44,38 @@ namespace Trainacc.Services
 
         public async Task<TransactionDto> CreateTransactionAsync(TransactionCreateDto dto)
         {
-            var transaction = new Transactions
+            var account = await _context.Accounts.FirstOrDefaultAsync(a => a.RecordId == dto.RecordId);
+            if (account == null)
+                throw new Exception("Счёт не найден");
+            if (dto.Type == TransactionType.Expense && account.Balance < dto.TransactionValue)
+                throw new Exception("Недостаточно средств на счёте для расхода");
+            if (dto.TransactionValue < 0)
+                throw new Exception("Сумма операции не может быть отрицательной");
+            if (string.IsNullOrWhiteSpace(dto.Category))
+                throw new Exception("Категория обязательна");
+            var t = new Transactions
             {
                 Category = dto.Category,
                 TransactionValue = dto.TransactionValue,
                 TimeOfTransaction = DateTime.UtcNow,
                 RecordId = dto.RecordId,
                 Type = dto.Type,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                Description = dto.Description
             };
-            _context.Transactions.Add(transaction);
-            
-            var account = await _context.Accounts.FirstOrDefaultAsync(a => a.RecordId == dto.RecordId);
-            if (account != null)
-            {
-                if (dto.Type == TransactionType.Income)
-                    account.Balance += dto.TransactionValue;
-                else
-                    account.Balance -= dto.TransactionValue;
-            }
-            
-            if (dto.Type == TransactionType.Expense)
-            {
-                await _restrictionsService.UpdateRestrictionsSpentAsync(dto.RecordId, dto.Category, dto.TransactionValue);
-            }
-            await _context.SaveChangesAsync();
-            return new TransactionDto
-            {
-                Id = transaction.Id,
-                Category = transaction.Category,
-                TransactionValue = transaction.TransactionValue,
-                TimeOfTransaction = transaction.TimeOfTransaction,
-                Type = transaction.Type
-            };
-        }
-
-        public async Task<TransactionDto> CreateTransactionAndUpdateBalanceAsync(TransactionCreateDto dto)
-        {
-            var transaction = new Transactions
-            {
-                Category = dto.Category,
-                TransactionValue = dto.TransactionValue,
-                TimeOfTransaction = DateTime.UtcNow,
-                RecordId = dto.RecordId
-            };
-            _context.Transactions.Add(transaction);
-            
-            var account = await _context.Accounts.FirstOrDefaultAsync(a => a.RecordId == dto.RecordId);
-            if (account != null)
-            {
+            _context.Transactions.Add(t);
+            if (dto.Type == TransactionType.Income)
                 account.Balance += dto.TransactionValue;
-            }
+            else
+                account.Balance -= dto.TransactionValue;
             await _context.SaveChangesAsync();
             return new TransactionDto
             {
-                Id = transaction.Id,
-                Category = transaction.Category,
-                TransactionValue = transaction.TransactionValue,
-                TimeOfTransaction = transaction.TimeOfTransaction
+                Id = t.Id,
+                Category = t.Category,
+                TransactionValue = t.TransactionValue,
+                TimeOfTransaction = t.TimeOfTransaction,
+                Type = t.Type
             };
         }
 
@@ -114,7 +88,6 @@ namespace Trainacc.Services
             var oldCategory = transaction.Category;
             transaction.UpdatedAt = DateTime.UtcNow;
             var account = await _context.Accounts.FirstOrDefaultAsync(a => a.RecordId == transaction.RecordId);
-
             if (account != null)
             {
                 if (oldType == TransactionType.Income)
@@ -122,31 +95,22 @@ namespace Trainacc.Services
                 else
                     account.Balance += oldValue;
             }
-            if (oldType == TransactionType.Expense)
-            {
-                await _restrictionsService.UpdateRestrictionsSpentAsync(transaction.RecordId, oldCategory, -oldValue);
-            }
-
             if (dto.Category != null)
                 transaction.Category = dto.Category;
             if (dto.TransactionValue.HasValue)
                 transaction.TransactionValue = dto.TransactionValue.Value;
             if (dto.Type.HasValue)
                 transaction.Type = dto.Type.Value;
-
+            if (dto.Description != null)
+                transaction.Description = dto.Description;
             if (string.IsNullOrWhiteSpace(transaction.Category) || transaction.TransactionValue < 0)
                 return false;
-
             if (account != null)
             {
                 if (transaction.Type == TransactionType.Income)
                     account.Balance += transaction.TransactionValue;
                 else
                     account.Balance -= transaction.TransactionValue;
-            }
-            if (transaction.Type == TransactionType.Expense)
-            {
-                await _restrictionsService.UpdateRestrictionsSpentAsync(transaction.RecordId, transaction.Category, transaction.TransactionValue);
             }
             await _context.SaveChangesAsync();
             return true;
@@ -156,7 +120,6 @@ namespace Trainacc.Services
         {
             var transaction = await _context.Transactions.FindAsync(id);
             if (transaction == null) return false;
-            transaction.DeletedAt = DateTime.UtcNow;
             var account = await _context.Accounts.FirstOrDefaultAsync(a => a.RecordId == transaction.RecordId);
             if (account != null)
             {
@@ -164,10 +127,6 @@ namespace Trainacc.Services
                     account.Balance -= transaction.TransactionValue;
                 else
                     account.Balance += transaction.TransactionValue;
-            }
-            if (transaction.Type == TransactionType.Expense)
-            {
-                await _restrictionsService.UpdateRestrictionsSpentAsync(transaction.RecordId, transaction.Category, -transaction.TransactionValue);
             }
             _context.Transactions.Remove(transaction);
             await _context.SaveChangesAsync();
@@ -248,24 +207,6 @@ namespace Trainacc.Services
                 TimeOfTransaction = t.TimeOfTransaction,
                 Type = t.Type
             }).ToListAsync();
-        }
-
-        public async Task<int> GetUserRecordId(int userId)
-        {
-            var record = await _context.Records.FirstOrDefaultAsync(r => r.UserId == userId);
-            if (record == null) throw new Exception("Record not found");
-            return record.Id;
-        }
-
-        public async Task<int> ArchiveOldTransactionsAsync(DateTime beforeDate)
-        {
-            var oldTxs = await _context.Transactions.Where(t => t.TimeOfTransaction < beforeDate && t.DeletedAt == null).ToListAsync();
-            foreach (var tx in oldTxs)
-            {
-                tx.DeletedAt = DateTime.UtcNow;
-            }
-            await _context.SaveChangesAsync();
-            return oldTxs.Count;
         }
     }
 }

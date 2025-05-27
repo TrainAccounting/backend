@@ -40,8 +40,7 @@ namespace Trainacc.Controllers
                                 return Ok(await _service.GetRestrictionsByRecordAsync(recordId.Value));
                             return BadRequest("recordId required");
                         case "exceeded":
-                            var result = await _service.GetExceededRestrictionsAsync(userId);
-                            return Ok(result);
+                            return BadRequest("Режим 'exceeded' не поддерживается");
                         default:
                             return BadRequest("Unknown mode");
                     }

@@ -64,7 +64,10 @@ namespace Trainacc.Services
         {
             var account = await _context.Accounts.FindAsync(id);
             if (account == null) return false;
-            account.NameOfAccount = dto.NameOfAccount ?? account.NameOfAccount;
+            if (dto.NameOfAccount != null && dto.NameOfAccount != account.NameOfAccount)
+            {
+                account.NameOfAccount = dto.NameOfAccount;
+            }
             await _context.SaveChangesAsync();
             return true;
         }
@@ -73,6 +76,8 @@ namespace Trainacc.Services
         {
             var account = await _context.Accounts.FindAsync(id);
             if (account == null) return false;
+            if (account.Balance != 0)
+                throw new Exception("Нельзя удалить счёт с ненулевым балансом");
             _context.Accounts.Remove(account);
             await _context.SaveChangesAsync();
             return true;
@@ -82,7 +87,13 @@ namespace Trainacc.Services
         {
             var record = await _context.Records.FirstOrDefaultAsync(r => r.UserId == userId);
             if (record == null) return 0;
-            return await _context.Accounts.Where(a => a.RecordId == record.Id).SumAsync(a => a.Balance);
+            var accounts = await _context.Accounts.Where(a => a.RecordId == record.Id).ToListAsync();
+            decimal total = 0;
+            foreach (var acc in accounts)
+            {
+                total += acc.Balance;
+            }
+            return total;
         }
 
         public async Task<List<AccountSummaryDto>> GetAccountSummariesAsync(int userId)

@@ -31,6 +31,11 @@ namespace Trainacc.Models
 
         [Required]
         public TransactionType Type { get; set; }
+        public string? Description { get; set; }
+        public bool IsPlanned { get; set; } = false;
+        public string? PlannedDate { get; set; }
+        public int? DebitAccountId { get; set; }
+        public int? CreditAccountId { get; set; }
     }
 
     public class TransactionUpdateDto
@@ -38,6 +43,9 @@ namespace Trainacc.Models
         public string? Category { get; set; }
         public decimal? TransactionValue { get; set; }
         public TransactionType? Type { get; set; }
+        public string? Description { get; set; }
+        public bool? IsPlanned { get; set; }
+        public string? PlannedDate { get; set; }
     }
 
     public class TransactionReportDto

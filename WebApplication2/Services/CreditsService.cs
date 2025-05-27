@@ -24,9 +24,7 @@ namespace Trainacc.Services
                 DateOfOpening = c.DateOfOpening,
                 PeriodOfPayment = c.PeriodOfPayment,
                 InterestRate = c.InterestRate,
-                Amount = c.Amount,
-                PayType = c.PayType,
-                IsActive = c.IsActive
+                Amount = c.Amount
             }).ToListAsync();
         }
 
@@ -42,14 +40,14 @@ namespace Trainacc.Services
                 DateOfOpening = c.DateOfOpening,
                 PeriodOfPayment = c.PeriodOfPayment,
                 InterestRate = c.InterestRate,
-                Amount = c.Amount,
-                PayType = c.PayType,
-                IsActive = c.IsActive
+                Amount = c.Amount
             };
         }
 
         public async Task<CreditDto> CreateCreditAsync(CreditDto dto)
         {
+            if (dto.InterestRate < 0 || dto.Amount < 0)
+                throw new Exception("Ставка и сумма кредита должны быть положительными");
             var credit = new Credit
             {
                 NameOfCredit = dto.NameOfCredit,
@@ -58,9 +56,7 @@ namespace Trainacc.Services
                 PeriodOfPayment = dto.PeriodOfPayment,
                 InterestRate = dto.InterestRate,
                 Amount = dto.Amount,
-                PayType = dto.PayType,
-                IsActive = dto.IsActive,
-                RecordId = dto.Id
+                RecordId = dto.RecordId
             };
             _context.Credits.Add(credit);
             await _context.SaveChangesAsync();
@@ -101,9 +97,7 @@ namespace Trainacc.Services
                     DateOfOpening = c.DateOfOpening,
                     PeriodOfPayment = c.PeriodOfPayment,
                     InterestRate = c.InterestRate,
-                    Amount = c.Amount,
-                    PayType = c.PayType,
-                    IsActive = c.IsActive
+                    Amount = c.Amount
                 })
                 .ToListAsync();
         }

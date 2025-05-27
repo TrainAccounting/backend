@@ -13,6 +13,8 @@ namespace Trainacc.Models
         [Required]
         public string Role { get; set; } = "User";
         public List<Record> Records { get; set; } = new List<Record>();
+        public bool TwoFactorEnabled { get; set; } = false; 
+        public string? LastAuditLog { get; set; } 
     }
     public class Record
     {
@@ -40,6 +42,8 @@ namespace Trainacc.Models
         public string? Description { get; set; }
         public bool IsActive { get; set; }
         public Record? Record { get; set; }
+        public DateTime? LastReset { get; set; } 
+        public bool NotificationSent { get; set; } = false; 
     }
     public class Account
     {
@@ -48,7 +52,6 @@ namespace Trainacc.Models
         public string? NameOfAccount { get; set; }
         public DateTime DateOfOpening { get; set; }
         public int RecordId { get; set; }
-        public ICollection<Transactions> Transactions { get; set; } = new List<Transactions>();
         public decimal Balance { get; set; }
         public Record? Record { get; set; }
     }
@@ -70,6 +73,10 @@ namespace Trainacc.Models
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
         public DateTime? DeletedAt { get; set; }
+        public string? Description { get; set; }
+        public bool IsPlanned { get; set; } = false;
+        public bool IsExecuted { get; set; } = true; 
+        public string? PlannedDate { get; set; }
     }
     public class Deposit
     {
@@ -87,6 +94,7 @@ namespace Trainacc.Models
         public int RecordId { get; set; }
         public bool IsActive { get; set; }
         public Record? Record { get; set; }
+        public DateTime? DateOfClose { get; set; } 
     }
     public class Credit
     {
@@ -102,10 +110,33 @@ namespace Trainacc.Models
         public int RecordId { get; set; }
         public bool IsActive { get; set; }
         public Record? Record { get; set; }
+        public string? PenaltyHistoryJson { get; set; } 
+        public DateTime? DateOfClose { get; set; } 
+        public bool IsEarlyRepaymentRequested { get; set; } 
+        public int OverdueCount { get; set; } 
+        public decimal PenaltySum { get; set; } 
     }
-
     public enum PaymentType
     {
         Monthly = 0
+    }
+    public enum CreditStatus
+    {
+        Active,
+        Closed,
+        Overdue,
+        Pending
+    }
+    public enum DepositStatus
+    {
+        Active,
+        Closed,
+        Pending
+    }
+    public enum CurrencyType
+    {
+        RUB,
+        USD,
+        EUR
     }
 }
