@@ -1,12 +1,8 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using System.Text;
 using Trainacc.Data;
 using Trainacc.Filters;
 using Trainacc.Services;
-using System.Security.Claims;
 using Trainacc.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -74,7 +70,7 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // builder.Services.AddAuthorization();
-builder.Services.AddScoped<TokenService>();
+// builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<LogActionFilter>();
 builder.Services.AddScoped<ETagFilter>();
 builder.Services.AddScoped<ValidateModelAttribute>();

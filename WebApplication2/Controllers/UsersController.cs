@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Trainacc.Models;
 using Trainacc.Filters;
 using Trainacc.Services;
+using Microsoft.EntityFrameworkCore;
 
 namespace Trainacc.Controllers
 {
@@ -63,6 +64,15 @@ namespace Trainacc.Controllers
                 return NoContent();
             }
             catch { return Problem(); }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Post([FromBody] UserCreateDto userDto)
+        {
+            var (user, record, account, error) = await _service.RegisterUserWithRecordAndAccountAsync(userDto);
+            if (error != null)
+                return BadRequest(error);
+            return Ok(new { user.Id, user.Email, recordId = record.Id, accountId = account.Id });
         }
     }
 }

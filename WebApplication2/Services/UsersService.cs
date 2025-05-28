@@ -59,5 +59,48 @@ namespace Trainacc.Services
             await _context.SaveChangesAsync();
             return true;
         }
+
+        public async Task<(Users? user, Record? record, Account? account, string? error)> RegisterUserWithRecordAndAccountAsync(UserCreateDto userDto)
+        {
+            if (await _context.Users.AnyAsync(u => u.Email == userDto.Email))
+                return (null, null, null, "Пользователь с таким email уже существует.");
+
+            if (!string.IsNullOrWhiteSpace(userDto.Phone))
+            {
+                if (await _context.Users.AnyAsync(u => u.Phone == userDto.Phone))
+                    return (null, null, null, "Пользователь с таким номером телефона уже существует.");
+            }
+
+            var user = new Users
+            {
+                FIO = userDto.FIO,
+                Email = userDto.Email,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(userDto.Password),
+                Role = userDto.Role ?? string.Empty
+            };
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+
+            var record = new Record
+            {
+                NameOfRecord = "Default Record",
+                DateOfCreation = DateTime.UtcNow,
+                UserId = user.Id
+            };
+            _context.Records.Add(record);
+            await _context.SaveChangesAsync();
+
+            var account = new Account
+            {
+                NameOfAccount = "Default Account",
+                Balance = 0,
+                DateOfOpening = DateTime.UtcNow,
+                RecordId = record.Id
+            };
+            _context.Accounts.Add(account);
+            await _context.SaveChangesAsync();
+
+            return (user, record, account, null);
+        }
     }
 }
