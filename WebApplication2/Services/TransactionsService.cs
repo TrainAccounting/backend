@@ -42,32 +42,71 @@ namespace Trainacc.Services
             };
         }
 
+        public async Task<int> ProcessPlannedTransactionsAsync()
+        {
+            var now = DateTime.UtcNow;
+            var planned = await _context.Transactions
+                .Where(t => t.IsPlanned && !t.IsExecuted && t.PlannedDate != null)
+                .ToListAsync();
+            int processed = 0;
+            foreach (var t in planned)
+            {
+                if (!DateTime.TryParse(t.PlannedDate, out var plannedDate))
+                    continue;
+                if (plannedDate > now)
+                    continue;
+                var account = await _context.Accounts.FirstOrDefaultAsync(a => a.RecordId == t.RecordId);
+                if (account == null) continue;
+                if (t.Type == TransactionType.Expense && account.Balance < t.TransactionValue)
+                    continue;
+                t.IsExecuted = true;
+                t.IsPlanned = false;
+                t.TimeOfTransaction = now;
+                if (t.Type == TransactionType.Income)
+                    account.Balance += t.TransactionValue;
+                else
+                    account.Balance -= t.TransactionValue;
+                processed++;
+            }
+            await _context.SaveChangesAsync();
+            return processed;
+        }
+
         public async Task<TransactionDto> CreateTransactionAsync(TransactionCreateDto dto)
         {
             var account = await _context.Accounts.FirstOrDefaultAsync(a => a.RecordId == dto.RecordId);
             if (account == null)
                 throw new Exception("Счёт не найден");
-            if (dto.Type == TransactionType.Expense && account.Balance < dto.TransactionValue)
+            if (dto.Type == TransactionType.Expense && account.Balance < dto.TransactionValue && !dto.IsPlanned)
                 throw new Exception("Недостаточно средств на счёте для расхода");
             if (dto.TransactionValue < 0)
                 throw new Exception("Сумма операции не может быть отрицательной");
             if (string.IsNullOrWhiteSpace(dto.Category))
                 throw new Exception("Категория обязательна");
+            DateTime timeOfTransaction = DateTime.UtcNow;
+            if (dto.IsPlanned && !string.IsNullOrWhiteSpace(dto.PlannedDate) && DateTime.TryParse(dto.PlannedDate, out var parsedDate))
+                timeOfTransaction = parsedDate;
             var t = new Transactions
             {
                 Category = dto.Category,
                 TransactionValue = dto.TransactionValue,
-                TimeOfTransaction = DateTime.UtcNow,
+                TimeOfTransaction = timeOfTransaction,
                 RecordId = dto.RecordId,
                 Type = dto.Type,
                 CreatedAt = DateTime.UtcNow,
-                Description = dto.Description
+                Description = dto.Description,
+                IsPlanned = dto.IsPlanned,
+                PlannedDate = dto.PlannedDate,
+                IsExecuted = !dto.IsPlanned
             };
             _context.Transactions.Add(t);
-            if (dto.Type == TransactionType.Income)
-                account.Balance += dto.TransactionValue;
-            else
-                account.Balance -= dto.TransactionValue;
+            if (!dto.IsPlanned)
+            {
+                if (dto.Type == TransactionType.Income)
+                    account.Balance += dto.TransactionValue;
+                else
+                    account.Balance -= dto.TransactionValue;
+            }
             await _context.SaveChangesAsync();
             return new TransactionDto
             {

@@ -34,8 +34,6 @@ namespace Trainacc.Models
         public string? Description { get; set; }
         public bool IsPlanned { get; set; } = false;
         public string? PlannedDate { get; set; }
-        public int? DebitAccountId { get; set; }
-        public int? CreditAccountId { get; set; }
     }
 
     public class TransactionUpdateDto

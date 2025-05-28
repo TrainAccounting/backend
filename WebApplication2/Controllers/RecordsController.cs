@@ -1,12 +1,11 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Trainacc.Filters;
 using Trainacc.Models;
 using Trainacc.Services;
 
 namespace Trainacc.Controllers
 {
-    [Authorize]
+    // [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     [ServiceFilter(typeof(LogActionFilter))]
@@ -20,7 +19,8 @@ namespace Trainacc.Controllers
         public async Task<IActionResult> Get(
             int? id = null,
             string? mode = null,
-            int? userId = null)
+            int? userId = null
+        )
         {
             try
             {
@@ -48,14 +48,15 @@ namespace Trainacc.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Post([FromBody] RecordCreateDto? recordDto = null)
+        public async Task<IActionResult> Post([FromBody] RecordCreateDto? recordDto = null, int? userId = null)
         {
             if (recordDto == null)
                 return BadRequest("Данные не переданы");
+            if (!userId.HasValue)
+                return BadRequest("userId обязателен для создания записи");
             try
             {
-                int userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
-                var created = await _service.CreateRecordAsync(recordDto, userId);
+                var created = await _service.CreateRecordAsync(recordDto, userId.Value);
                 return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
             }
             catch { return Problem(); }
@@ -74,7 +75,7 @@ namespace Trainacc.Controllers
             }
             catch { return Problem(); }
         }
-
+        
         [HttpDelete]
         public async Task<IActionResult> Delete(int id)
         {

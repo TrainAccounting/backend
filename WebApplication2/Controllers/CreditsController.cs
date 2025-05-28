@@ -6,7 +6,7 @@ using Trainacc.Models;
 
 namespace Trainacc.Controllers
 {
-    [Authorize]
+    // [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     [ServiceFilter(typeof(LogActionFilter))]

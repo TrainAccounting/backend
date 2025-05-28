@@ -6,11 +6,11 @@ namespace Trainacc.Models
     {
         public int Id { get; set; }
         public string? NameOfCredit { get; set; }
+        public decimal CreditStartValue { get; set; }
         public decimal CreditCurrentValue { get; set; }
         public DateTime DateOfOpening { get; set; }
         public int PeriodOfPayment { get; set; }
         public decimal InterestRate { get; set; }
-        public decimal Amount { get; set; }
         public int RecordId { get; set; }
     }
 

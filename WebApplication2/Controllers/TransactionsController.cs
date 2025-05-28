@@ -7,7 +7,7 @@ using Trainacc.Services;
 
 namespace Trainacc.Controllers
 {
-    [Authorize]
+    // [Authorize] 
     [Route("api/[controller]")]
     [ApiController]
     [ServiceFilter(typeof(LogActionFilter))]
@@ -28,27 +28,35 @@ namespace Trainacc.Controllers
             DateTime? from = null,
             DateTime? to = null,
             decimal? min = null,
-            decimal? max = null)
+            decimal? max = null,
+            int? userId = null
+        )
         {
             try
             {
-                var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
                 if (id.HasValue)
                 {
                     var result = await _service.GetTransactionAsync(id.Value);
                     if (result == null) return NotFound();
                     return Ok(result);
                 }
+
                 if (!string.IsNullOrEmpty(mode))
                 {
                     switch (mode.ToLower())
                     {
                         case "summary":
-                            return Ok(await _service.GetSummaryByCategoryAsync(userId, from, to));
+                            if (!userId.HasValue)
+                                return BadRequest("userId обязателен для summary");
+                            return Ok(await _service.GetSummaryByCategoryAsync(userId.Value, from, to));
                         case "top":
-                            return Ok(await _service.GetTopExpensesByCategoryAsync(userId, topN ?? 5, from, to));
+                            if (!userId.HasValue)
+                                return BadRequest("userId обязателен для top");
+                            return Ok(await _service.GetTopExpensesByCategoryAsync(userId.Value, topN ?? 5, from, to));
                         case "filter":
-                            return Ok(await _service.FilterTransactionsAsync(userId, type, category, from, to, min, max));
+                            if (!userId.HasValue)
+                                return BadRequest("userId обязателен для filter");
+                            return Ok(await _service.FilterTransactionsAsync(userId.Value, type, category, from, to, min, max));
                         case "by-record":
                             if (recordId.HasValue)
                                 return Ok(await _service.GetTransactionsByRecordAsync(recordId.Value));
@@ -57,6 +65,7 @@ namespace Trainacc.Controllers
                             return BadRequest("Unknown mode");
                     }
                 }
+
                 return Ok(await _service.GetTransactionsAsync());
             }
             catch { return Problem(); }

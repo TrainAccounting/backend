@@ -6,7 +6,7 @@ using Trainacc.Services;
 
 namespace Trainacc.Controllers
 {
-    [Authorize]
+    // [Authorize] 
     [Route("api/[controller]")]
     [ApiController]
     [ServiceFilter(typeof(LogActionFilter))]
@@ -16,21 +16,24 @@ namespace Trainacc.Controllers
         private readonly RestrictionsService _service;
         public RestrictionsController(RestrictionsService service) => _service = service;
 
+
         [HttpGet]
         public async Task<IActionResult> Get(
             int? id = null,
             string? mode = null,
-            int? recordId = null)
+            int? recordId = null,
+            int? userId = null 
+        )
         {
             try
             {
-                var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
                 if (id.HasValue)
                 {
                     var result = await _service.GetRestrictionAsync(id.Value);
                     if (result == null) return NotFound();
                     return Ok(result);
                 }
+
                 if (!string.IsNullOrEmpty(mode))
                 {
                     switch (mode.ToLower())
@@ -45,6 +48,7 @@ namespace Trainacc.Controllers
                             return BadRequest("Unknown mode");
                     }
                 }
+
                 return Ok(await _service.GetRestrictionsAsync());
             }
             catch { return Problem(); }

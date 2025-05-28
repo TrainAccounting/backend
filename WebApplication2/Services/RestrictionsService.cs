@@ -44,8 +44,6 @@ namespace Trainacc.Services
             if (record == null)
                 throw new Exception("Record not found");
             var sumRestrictions = record.Restrictions.Sum(r => r.RestrictionValue) + dto.RestrictionValue;
-            if (sumRestrictions > record.MonthlySalary)
-                throw new Exception("Сумма ограничений превышает месячную зарплату");
             var restriction = new Restriction
             {
                 RecordId = dto.Id,
@@ -67,8 +65,6 @@ namespace Trainacc.Services
             if (record == null) return false;
             decimal newValue = dto.RestrictionValue ?? restriction.RestrictionValue;
             var sumRestrictions = record.Restrictions.Where(r => r.Id != id).Sum(r => r.RestrictionValue) + newValue;
-            if (sumRestrictions > record.MonthlySalary)
-                throw new Exception("Сумма ограничений превышает месячную зарплату");
             restriction.Category = dto.Category ?? restriction.Category;
             restriction.RestrictionValue = newValue;
             await _context.SaveChangesAsync();

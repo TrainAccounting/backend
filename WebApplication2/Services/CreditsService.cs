@@ -20,11 +20,12 @@ namespace Trainacc.Services
             {
                 Id = c.Id,
                 NameOfCredit = c.NameOfCredit,
+                CreditStartValue = c.CreditStartValue,
                 CreditCurrentValue = c.CreditCurrentValue,
                 DateOfOpening = c.DateOfOpening,
                 PeriodOfPayment = c.PeriodOfPayment,
                 InterestRate = c.InterestRate,
-                Amount = c.Amount
+                RecordId = c.RecordId
             }).ToListAsync();
         }
 
@@ -36,27 +37,31 @@ namespace Trainacc.Services
             {
                 Id = c.Id,
                 NameOfCredit = c.NameOfCredit,
+                CreditStartValue = c.CreditStartValue,
                 CreditCurrentValue = c.CreditCurrentValue,
                 DateOfOpening = c.DateOfOpening,
                 PeriodOfPayment = c.PeriodOfPayment,
                 InterestRate = c.InterestRate,
-                Amount = c.Amount
+                RecordId = c.RecordId
             };
         }
 
         public async Task<CreditDto> CreateCreditAsync(CreditDto dto)
         {
-            if (dto.InterestRate < 0 || dto.Amount < 0)
-                throw new Exception("Ставка и сумма кредита должны быть положительными");
+            if (dto.InterestRate < 0)
+                throw new Exception("Ставка кредита должна быть положительной");
+            if (dto.CreditStartValue <= 0)
+                throw new Exception("Сумма кредита должна быть положительной");
             var credit = new Credit
             {
                 NameOfCredit = dto.NameOfCredit,
-                CreditCurrentValue = dto.CreditCurrentValue,
+                CreditStartValue = dto.CreditStartValue,
+                CreditCurrentValue = dto.CreditStartValue,
                 DateOfOpening = dto.DateOfOpening,
                 PeriodOfPayment = dto.PeriodOfPayment,
                 InterestRate = dto.InterestRate,
-                Amount = dto.Amount,
-                RecordId = dto.RecordId
+                RecordId = dto.RecordId,
+                IsActive = true
             };
             _context.Credits.Add(credit);
             await _context.SaveChangesAsync();
@@ -93,11 +98,12 @@ namespace Trainacc.Services
                 {
                     Id = c.Id,
                     NameOfCredit = c.NameOfCredit,
+                    CreditStartValue = c.CreditStartValue,
                     CreditCurrentValue = c.CreditCurrentValue,
                     DateOfOpening = c.DateOfOpening,
                     PeriodOfPayment = c.PeriodOfPayment,
                     InterestRate = c.InterestRate,
-                    Amount = c.Amount
+                    RecordId = c.RecordId
                 })
                 .ToListAsync();
         }
@@ -125,7 +131,7 @@ namespace Trainacc.Services
             var credits = await _context.Credits.Where(c => c.IsActive).ToListAsync();
             foreach (var credit in credits)
             {
-                if (credit.PeriodOfPayment <= 0 || credit.Amount <= 0) continue;
+                if (credit.PeriodOfPayment <= 0 || credit.CreditStartValue <= 0) continue;
                 int monthsPassed = ((now.Year - credit.DateOfOpening.Year) * 12) + now.Month - credit.DateOfOpening.Month;
                 if (monthsPassed >= credit.PeriodOfPayment)
                 {
@@ -137,7 +143,7 @@ namespace Trainacc.Services
                 }
                 decimal monthlyRate = credit.InterestRate / 12m / 100m;
                 int n = credit.PeriodOfPayment;
-                decimal S = credit.Amount;
+                decimal S = credit.CreditStartValue;
                 decimal payment = S * (monthlyRate * (decimal)Math.Pow((double)(1 + monthlyRate), n)) /
                     ((decimal)Math.Pow((double)(1 + monthlyRate), n) - 1);
                 var account = await _context.Accounts.FirstOrDefaultAsync(a => a.RecordId == credit.RecordId);

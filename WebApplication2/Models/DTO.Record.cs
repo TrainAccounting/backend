@@ -12,18 +12,12 @@ namespace Trainacc.Models
         public string? Currency { get; set; }
         public decimal Debit { get; set; }
         public decimal Credit { get; set; }
-        public decimal MonthlySalary { get; set; }
-        public decimal SavingsGoal { get; set; }
-        public string? SavingsGoalName { get; set; }
     }
 
     public class RecordCreateDto
     {
         [Required]
         public string NameOfRecord { get; set; } = null!;
-        public decimal MonthlySalary { get; set; }
-        public decimal SavingsGoal { get; set; }
-        public string? SavingsGoalName { get; set; }
     }
 
     public class RecordSummaryDto

@@ -25,7 +25,7 @@ namespace Trainacc.Services
                 DateOfOpening = d.DateOfOpening,
                 PeriodOfPayment = d.PeriodOfPayment,
                 InterestRate = d.InterestRate,
-                Amount = d.Amount
+                RecordId = d.RecordId
             }).ToListAsync();
         }
 
@@ -42,14 +42,20 @@ namespace Trainacc.Services
                 DateOfOpening = d.DateOfOpening,
                 PeriodOfPayment = d.PeriodOfPayment,
                 InterestRate = d.InterestRate,
-                Amount = d.Amount
+                RecordId = d.RecordId
             };
         }
 
         public async Task<DepositDto> CreateDepositAsync(DepositDto dto)
         {
-            if (dto.InterestRate < 0 || dto.Amount < 0)
-                throw new Exception("Ставка и сумма депозита должны быть положительными");
+            if (dto.InterestRate < 0)
+                throw new Exception("Ставка депозита должна быть положительной");
+            if (dto.DepositStartValue < 0)
+                throw new Exception("Стартовая сумма депозита должна быть положительной");
+            if (dto.DepositCurrentValue < 0)
+                throw new Exception("Текущая сумма депозита должна быть положительной");
+            if (dto.PeriodOfPayment <= 0)
+                throw new Exception("Период выплат должен быть положительным");
             var deposit = new Deposit
             {
                 NameOfDeposit = dto.NameOfDeposit,
@@ -58,7 +64,6 @@ namespace Trainacc.Services
                 DateOfOpening = dto.DateOfOpening,
                 PeriodOfPayment = dto.PeriodOfPayment,
                 InterestRate = dto.InterestRate,
-                Amount = dto.Amount,
                 RecordId = dto.RecordId
             };
             _context.Deposits.Add(deposit);
@@ -71,6 +76,12 @@ namespace Trainacc.Services
         {
             var deposit = await _context.Deposits.FindAsync(id);
             if (deposit == null) return false;
+            if (dto.DepositCurrentValue.HasValue && dto.DepositCurrentValue.Value < 0)
+                throw new Exception("Текущая сумма депозита должна быть положительной");
+            if (dto.PeriodOfPayment.HasValue && dto.PeriodOfPayment.Value <= 0)
+                throw new Exception("Период выплат должен быть положительным");
+            if (dto.InterestRate.HasValue && dto.InterestRate.Value < 0)
+                throw new Exception("Ставка депозита должна быть положительной");
             deposit.NameOfDeposit = dto.NameOfDeposit ?? deposit.NameOfDeposit;
             deposit.DepositCurrentValue = dto.DepositCurrentValue ?? deposit.DepositCurrentValue;
             deposit.PeriodOfPayment = dto.PeriodOfPayment ?? deposit.PeriodOfPayment;
@@ -101,7 +112,7 @@ namespace Trainacc.Services
                     DateOfOpening = d.DateOfOpening,
                     PeriodOfPayment = d.PeriodOfPayment,
                     InterestRate = d.InterestRate,
-                    Amount = d.Amount
+                    RecordId = d.RecordId
                 })
                 .ToListAsync();
         }
