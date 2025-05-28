@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Trainacc.Models;
 using Trainacc.Filters;
 using Trainacc.Services;
@@ -29,6 +30,12 @@ namespace Trainacc.Controllers
                 {
                     var result = await _service.GetUserAsync(id.Value);
                     if (result == null) return NotFound();
+                    var currentUserId = User.Identity?.IsAuthenticated == true
+                        ? int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0")
+                        : 0;
+                    var isAdmin = User.IsInRole("admin") || User.IsInRole("administrator");
+                    if (result.Id != currentUserId && !isAdmin)
+                        return Forbid("Нет доступа к данным другого пользователя");
                     return Ok(result);
                 }
                 return Ok(await _service.GetUsersAsync());
@@ -37,6 +44,7 @@ namespace Trainacc.Controllers
         }
 
         [HttpPut]
+        [Authorize]
         [ServiceFilter(typeof(ValidateModelAttribute))]
         public async Task<IActionResult> Put(int id, [FromBody] UserUpdateDto userDto)
         {
@@ -50,6 +58,7 @@ namespace Trainacc.Controllers
         }
 
         [HttpDelete]
+        [Authorize]
         public async Task<IActionResult> Delete(int id)
         {
             try

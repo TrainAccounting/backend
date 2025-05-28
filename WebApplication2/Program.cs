@@ -113,10 +113,11 @@ if (app.Environment.IsDevelopment())
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Financial API V1");
         c.RoutePrefix = "swagger";
+        c.InjectJavascript("/swagger-authtoken.js");
     });
 }
 
-app.UseCors();
+app.UseStaticFiles();
 
 app.UseHttpsRedirection();
 

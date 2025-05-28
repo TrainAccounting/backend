@@ -56,7 +56,10 @@ namespace Trainacc.Services
             {
                 NameOfRecord = recordDto.NameOfRecord,
                 DateOfCreation = DateTime.UtcNow,
-                UserId = userId
+                UserId = userId,
+                MonthlySalary = recordDto.MonthlySalary,
+                SavingsGoal = recordDto.SavingsGoal,
+                SavingsGoalName = recordDto.SavingsGoalName
             };
             _context.Records.Add(record);
             await _context.SaveChangesAsync();
@@ -64,7 +67,10 @@ namespace Trainacc.Services
             {
                 Id = record.Id,
                 NameOfRecord = record.NameOfRecord,
-                DateOfCreation = record.DateOfCreation
+                DateOfCreation = record.DateOfCreation,
+                MonthlySalary = record.MonthlySalary,
+                SavingsGoal = record.SavingsGoal,
+                SavingsGoalName = record.SavingsGoalName
             };
         }
 
@@ -122,6 +128,35 @@ namespace Trainacc.Services
                 notify = true;
             }
             return (record.SafetyPillow, record.SavingsGoal, record.SavingsGoalName, notify);
+        }
+
+        public async Task<RecordDto?> UpdateRecordAsync(int id, RecordCreateDto recordDto)
+        {
+            var record = await _context.Records.FirstOrDefaultAsync(r => r.Id == id);
+            if (record == null) return null;
+            record.NameOfRecord = recordDto.NameOfRecord;
+            record.MonthlySalary = recordDto.MonthlySalary;
+            record.SavingsGoal = recordDto.SavingsGoal;
+            record.SavingsGoalName = recordDto.SavingsGoalName;
+            await _context.SaveChangesAsync();
+            return new RecordDto
+            {
+                Id = record.Id,
+                NameOfRecord = record.NameOfRecord,
+                DateOfCreation = record.DateOfCreation,
+                MonthlySalary = record.MonthlySalary,
+                SavingsGoal = record.SavingsGoal,
+                SavingsGoalName = record.SavingsGoalName
+            };
+        }
+
+        public async Task<bool> DeleteRecordAsync(int id)
+        {
+            var record = await _context.Records.FirstOrDefaultAsync(r => r.Id == id);
+            if (record == null) return false;
+            _context.Records.Remove(record);
+            await _context.SaveChangesAsync();
+            return true;
         }
     }
 }
