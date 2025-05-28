@@ -102,5 +102,15 @@ namespace Trainacc.Services
 
             return (user, record, account, null);
         }
+
+        public async Task<Users?> GetUserByCredentialsAsync(string email, string password)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+            if (user == null)
+                return null;
+            if (!BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
+                return null;
+            return user;
+        }
     }
 }

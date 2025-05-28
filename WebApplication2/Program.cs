@@ -1,8 +1,12 @@
+// using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+// using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+// using System.Text;
 using Trainacc.Data;
 using Trainacc.Filters;
 using Trainacc.Services;
+// using System.Security.Claims;
 using Trainacc.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);

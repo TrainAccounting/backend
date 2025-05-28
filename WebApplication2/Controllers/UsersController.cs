@@ -24,7 +24,7 @@ namespace Trainacc.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Get(int? id = null)
+        public async Task<IActionResult> Get(int? id = null, string? email = null, string? password = null)
         {
             try
             {
@@ -33,6 +33,13 @@ namespace Trainacc.Controllers
                     var result = await _service.GetUserAsync(id.Value);
                     if (result == null) return NotFound();
                     return Ok(result);
+                }
+                if (!string.IsNullOrEmpty(email) && !string.IsNullOrEmpty(password))
+                {
+                    var user = await _service.GetUserByCredentialsAsync(email, password);
+                    if (user == null)
+                        return NotFound("Пользователь с такими данными не найден или пароль неверный.");
+                    return Ok(new { id = user?.Id });
                 }
                 return Ok(await _service.GetUsersAsync());
             }
