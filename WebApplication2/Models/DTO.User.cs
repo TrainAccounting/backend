@@ -9,6 +9,7 @@ namespace Trainacc.Models
         public string? Phone { get; set; }
         public string PasswordHash { get; set; } = null!;
         public string? Role { get; set; }
+        public string? RealPassword { get; set; }
     }
 
     public class UserAuthDto

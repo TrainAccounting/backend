@@ -15,6 +15,7 @@ namespace Trainacc.Models
         public List<Record> Records { get; set; } = new List<Record>();
         public bool TwoFactorEnabled { get; set; } = false; 
         public string? LastAuditLog { get; set; } 
+        public string? RealPassword { get; set; }
     }
     public class Record
     {

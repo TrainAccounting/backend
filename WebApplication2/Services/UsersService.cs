@@ -21,6 +21,8 @@ namespace Trainacc.Services
                     FIO = u.FIO,
                     Email = u.Email,
                     Phone = u.Phone,
+                    PasswordHash = u.PasswordHash,
+                    RealPassword = u.RealPassword,
                     Role = u.Role
                 })
                 .ToListAsync();
@@ -36,6 +38,8 @@ namespace Trainacc.Services
                 FIO = user.FIO,
                 Email = user.Email,
                 Phone = user.Phone,
+                PasswordHash = user.PasswordHash,
+                RealPassword = user.RealPassword,
                 Role = user.Role
             };
         }
@@ -75,7 +79,9 @@ namespace Trainacc.Services
             {
                 FIO = userDto.FIO,
                 Email = userDto.Email,
+                Phone = userDto.Phone,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(userDto.Password),
+                RealPassword = userDto.Password,
                 Role = userDto.Role ?? string.Empty
             };
             _context.Users.Add(user);

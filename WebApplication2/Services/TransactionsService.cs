@@ -3,6 +3,10 @@ using System.Threading.Tasks;
 using Trainacc.Models;
 using Trainacc.Data;
 using Microsoft.EntityFrameworkCore;
+using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Spreadsheet;
+using System.IO;
 
 namespace Trainacc.Services
 {
@@ -246,6 +250,78 @@ namespace Trainacc.Services
                 TimeOfTransaction = t.TimeOfTransaction,
                 Type = t.Type
             }).ToListAsync();
+        }
+
+        public async Task<List<Transactions>> GetTransactionsForExportAsync(int? recordId, int? userId, DateTime? from, DateTime? to)
+        {
+            var query = _context.Transactions.AsQueryable();
+            if (recordId.HasValue)
+                query = query.Where(t => t.RecordId == recordId.Value);
+            if (userId.HasValue)
+                query = query.Where(t => t.Record != null && t.Record.UserId == userId.Value);
+            if (from.HasValue)
+                query = query.Where(t => t.TimeOfTransaction >= from.Value);
+            if (to.HasValue)
+                query = query.Where(t => t.TimeOfTransaction <= to.Value);
+            return await query.ToListAsync();
+        }
+
+        public async Task<byte[]> ExportTransactionsToExcelAsync(int? recordId, int? userId, DateTime? from, DateTime? to)
+        {
+            var transactions = await GetTransactionsForExportAsync(recordId, userId, from, to);
+            using (var ms = new MemoryStream())
+            {
+                using (var document = SpreadsheetDocument.Create(ms, SpreadsheetDocumentType.Workbook))
+                {
+                    var workbookPart = document.AddWorkbookPart();
+                    workbookPart.Workbook = new Workbook();
+                    var worksheetPart = workbookPart.AddNewPart<WorksheetPart>();
+                    var sheetData = new SheetData();
+                    worksheetPart.Worksheet = new Worksheet(sheetData);
+
+                    var headerRow = new Row();
+                    headerRow.Append(
+                        new Cell { CellValue = new CellValue("Id"), DataType = CellValues.String },
+                        new Cell { CellValue = new CellValue("Category"), DataType = CellValues.String },
+                        new Cell { CellValue = new CellValue("TransactionValue"), DataType = CellValues.String },
+                        new Cell { CellValue = new CellValue("TimeOfTransaction"), DataType = CellValues.String },
+                        new Cell { CellValue = new CellValue("Type"), DataType = CellValues.String },
+                        new Cell { CellValue = new CellValue("Description"), DataType = CellValues.String },
+                        new Cell { CellValue = new CellValue("IsPlanned"), DataType = CellValues.String },
+                        new Cell { CellValue = new CellValue("PlannedDate"), DataType = CellValues.String },
+                        new Cell { CellValue = new CellValue("RecordId"), DataType = CellValues.String }
+                    );
+                    sheetData.AppendChild(headerRow);
+
+                    foreach (var t in transactions)
+                    {
+                        var row = new Row();
+                        row.Append(
+                            new Cell { CellValue = new CellValue(t.Id.ToString()), DataType = CellValues.Number },
+                            new Cell { CellValue = new CellValue(t.Category ?? ""), DataType = CellValues.String },
+                            new Cell { CellValue = new CellValue(t.TransactionValue.ToString()), DataType = CellValues.Number },
+                            new Cell { CellValue = new CellValue(t.TimeOfTransaction.ToString("yyyy-MM-dd HH:mm:ss")), DataType = CellValues.String },
+                            new Cell { CellValue = new CellValue(t.Type.ToString()), DataType = CellValues.String },
+                            new Cell { CellValue = new CellValue(t.Description ?? ""), DataType = CellValues.String },
+                            new Cell { CellValue = new CellValue(t.IsPlanned ? "1" : "0"), DataType = CellValues.Number },
+                            new Cell { CellValue = new CellValue(t.PlannedDate ?? ""), DataType = CellValues.String },
+                            new Cell { CellValue = new CellValue(t.RecordId.ToString()), DataType = CellValues.Number }
+                        );
+                        sheetData.AppendChild(row);
+                    }
+
+                    var sheets = new Sheets();
+                    sheets.Append(new Sheet
+                    {
+                        Id = workbookPart.GetIdOfPart(worksheetPart),
+                        SheetId = 1,
+                        Name = "Transactions"
+                    });
+                    workbookPart.Workbook.AppendChild(sheets);
+                    workbookPart.Workbook.Save();
+                }
+                return ms.ToArray();
+            }
         }
     }
 }

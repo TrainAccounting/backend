@@ -61,6 +61,9 @@ namespace Trainacc.Controllers
                             if (recordId.HasValue)
                                 return Ok(await _service.GetTransactionsByRecordAsync(recordId.Value));
                             return BadRequest("recordId required");
+                        case "export":
+                            var excelBytes = await _service.ExportTransactionsToExcelAsync(recordId, userId, from, to);
+                            return File(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"transactions_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
                         default:
                             return BadRequest("Unknown mode");
                     }

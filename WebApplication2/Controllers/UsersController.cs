@@ -79,6 +79,8 @@ namespace Trainacc.Controllers
             var (user, record, account, error) = await _service.RegisterUserWithRecordAndAccountAsync(userDto);
             if (error != null)
                 return BadRequest(error);
+            if (user == null || record == null || account == null)
+                return Problem("Ошибка создания пользователя, записи или счёта (user/record/account is null)");
             return Ok(new { user.Id, user.Email, recordId = record.Id, accountId = account.Id });
         }
     }

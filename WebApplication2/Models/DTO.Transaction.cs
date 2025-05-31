@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Trainacc.Models
 {    public class TransactionDto
@@ -8,6 +9,13 @@ namespace Trainacc.Models
         public decimal TransactionValue { get; set; }
         public DateTime TimeOfTransaction { get; set; }
         public TransactionType Type { get; set; }
+        public int IsPlannedInt { get; set; } = 0;
+        [NotMapped]
+        public bool IsPlanned
+        {
+            get => IsPlannedInt == 1;
+            set => IsPlannedInt = value ? 1 : 0;
+        }
     }
 
     public class TransactionSummaryDto
@@ -32,7 +40,15 @@ namespace Trainacc.Models
         [Required]
         public TransactionType Type { get; set; }
         public string? Description { get; set; }
-        public bool IsPlanned { get; set; } = false;
+        [Required]
+        [Range(0, 1, ErrorMessage = "isPlanned должен быть 0 (false) или 1 (true)")]
+        public int IsPlannedInt { get; set; } = 0;
+        [NotMapped]
+        public bool IsPlanned
+        {
+            get => IsPlannedInt == 1;
+            set => IsPlannedInt = value ? 1 : 0;
+        }
         public string? PlannedDate { get; set; }
     }
 
@@ -42,7 +58,13 @@ namespace Trainacc.Models
         public decimal? TransactionValue { get; set; }
         public TransactionType? Type { get; set; }
         public string? Description { get; set; }
-        public bool? IsPlanned { get; set; }
+        public int? IsPlannedInt { get; set; } = 0;
+        [NotMapped]
+        public bool? IsPlanned
+        {
+            get => IsPlannedInt == 1;
+            set => IsPlannedInt = value == true ? 1 : 0;
+        }
         public string? PlannedDate { get; set; }
     }
 

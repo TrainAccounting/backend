@@ -7,7 +7,7 @@ namespace Trainacc.Data
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
-            //Database.EnsureDeleted();
+            // Database.EnsureDeleted();
             Database.EnsureCreated();
         }
         public DbSet<Users> Users { get; set; }
