@@ -16,23 +16,45 @@ namespace Trainacc.Services
 
         public async Task<List<CreditDto>> GetCreditsAsync()
         {
-            return await _context.Credits.Select(c => new CreditDto
+            var credits = await _context.Credits.ToListAsync();
+            var result = new List<CreditDto>();
+            foreach (var c in credits)
             {
-                Id = c.Id,
-                NameOfCredit = c.NameOfCredit,
-                CreditStartValue = c.CreditStartValue,
-                CreditCurrentValue = c.CreditCurrentValue,
-                DateOfOpening = c.DateOfOpening,
-                PeriodOfPayment = c.PeriodOfPayment,
-                InterestRate = c.InterestRate,
-                RecordId = c.RecordId
-            }).ToListAsync();
+                decimal interestRateInMoney = c.InterestRate * c.CreditStartValue / 100m;
+                decimal totalToPay = c.CreditStartValue + interestRateInMoney;
+                decimal monthlyPayment = c.PeriodOfPayment > 0 ? totalToPay / c.PeriodOfPayment : 0;
+                var account = await _context.Accounts.FindAsync(c.AccountId);
+                bool isEnoughMoney = account != null && account.Balance >= monthlyPayment;
+                result.Add(new CreditDto
+                {
+                    Id = c.Id,
+                    NameOfCredit = c.NameOfCredit,
+                    CreditStartValue = c.CreditStartValue,
+                    CreditCurrentValue = c.CreditCurrentValue,
+                    DateOfOpening = c.DateOfOpening,
+                    PeriodOfPayment = c.PeriodOfPayment,
+                    InterestRate = c.InterestRate,
+                    AccountId = c.AccountId,
+                    TogetAccountId = c.TogetAccountId,
+                    InterestRateInMoney = interestRateInMoney,
+                    IsOver = c.IsOver,
+                    TotalToPay = totalToPay,
+                    MonthlyPayment = monthlyPayment,
+                    IsEnoughMoney = isEnoughMoney
+                });
+            }
+            return result;
         }
 
         public async Task<CreditDto?> GetCreditAsync(int id)
         {
             var c = await _context.Credits.FindAsync(id);
             if (c == null) return null;
+            decimal interestRateInMoney = c.InterestRate * c.CreditStartValue / 100m;
+            decimal totalToPay = c.CreditStartValue + interestRateInMoney;
+            decimal monthlyPayment = totalToPay / c.PeriodOfPayment;
+            var account = await _context.Accounts.FindAsync(c.AccountId);
+            bool isEnoughMoney = account != null && account.Balance >= monthlyPayment;
             return new CreditDto
             {
                 Id = c.Id,
@@ -42,11 +64,17 @@ namespace Trainacc.Services
                 DateOfOpening = c.DateOfOpening,
                 PeriodOfPayment = c.PeriodOfPayment,
                 InterestRate = c.InterestRate,
-                RecordId = c.RecordId
+                AccountId = c.AccountId,
+                TogetAccountId = c.TogetAccountId,
+                InterestRateInMoney = interestRateInMoney,
+                IsOver = c.IsOver,
+                TotalToPay = totalToPay,
+                MonthlyPayment = monthlyPayment,
+                IsEnoughMoney = isEnoughMoney
             };
         }
 
-        public async Task<CreditDto> CreateCreditAsync(CreditDto dto)
+        public async Task<CreditDto> CreateCreditAsync(CreditDto dto, int accountsId)
         {
             if (dto.InterestRate < 0)
                 throw new Exception("Ставка кредита должна быть положительной");
@@ -60,13 +88,68 @@ namespace Trainacc.Services
                 DateOfOpening = dto.DateOfOpening,
                 PeriodOfPayment = dto.PeriodOfPayment,
                 InterestRate = dto.InterestRate,
-                RecordId = dto.RecordId,
+                AccountId = accountsId,
                 IsActive = true
             };
             _context.Credits.Add(credit);
             await _context.SaveChangesAsync();
             dto.Id = credit.Id;
             return dto;
+        }
+
+        public async Task<CreditDto> CreateCreditAsync(CreditCreateDto dto, int accountsId, int togetAccountId)
+        {
+            if (dto.InterestRate < 0)
+                throw new Exception("Ставка кредита должна быть положительной");
+            if (dto.CreditStartValue <= 0)
+                throw new Exception("Сумма кредита должна быть положительной");
+            var paymentAccount = await _context.Accounts.FindAsync(accountsId);
+            if (paymentAccount == null)
+                throw new Exception("Счёт для платежей не найден");
+            var togetAccount = await _context.Accounts.FindAsync(togetAccountId);
+            if (togetAccount == null)
+                throw new Exception("Счёт для зачисления кредита не найден");
+            DateTime dateOfOpening = dto.DateOfOpening ?? DateTime.UtcNow;
+            if (dateOfOpening > DateTime.UtcNow)
+                throw new Exception("Дата открытия не может быть в будущем");
+            if (dateOfOpening < new DateTime(2000, 1, 1))
+                throw new Exception("Дата открытия слишком старая");
+            var credit = new Credit
+            {
+                NameOfCredit = dto.NameOfCredit,
+                CreditStartValue = dto.CreditStartValue,
+                CreditCurrentValue = dto.CreditStartValue,
+                DateOfOpening = dateOfOpening,
+                PeriodOfPayment = dto.PeriodOfPayment,
+                InterestRate = dto.InterestRate,
+                AccountId = accountsId,
+                TogetAccountId = togetAccountId,
+                IsActive = true
+            };
+            _context.Credits.Add(credit);
+            togetAccount.Balance += dto.CreditStartValue;
+            await _context.SaveChangesAsync();
+            decimal interestRateInMoney = credit.InterestRate * credit.CreditStartValue / 100m;
+            decimal totalToPay = credit.CreditStartValue + interestRateInMoney;
+            decimal monthlyPayment = credit.PeriodOfPayment > 0 ? totalToPay / credit.PeriodOfPayment : 0;
+            bool isEnoughMoney = paymentAccount.Balance >= monthlyPayment;
+            return new CreditDto
+            {
+                Id = credit.Id,
+                NameOfCredit = credit.NameOfCredit,
+                CreditStartValue = credit.CreditStartValue,
+                CreditCurrentValue = credit.CreditCurrentValue,
+                DateOfOpening = credit.DateOfOpening,
+                PeriodOfPayment = credit.PeriodOfPayment,
+                InterestRate = credit.InterestRate,
+                AccountId = credit.AccountId,
+                TogetAccountId = credit.TogetAccountId,
+                InterestRateInMoney = interestRateInMoney,
+                IsOver = credit.IsOver,
+                TotalToPay = totalToPay,
+                MonthlyPayment = monthlyPayment,
+                IsEnoughMoney = isEnoughMoney
+            };
         }
 
         public async Task<bool> UpdateCreditAsync(int id, CreditUpdateDto dto)
@@ -92,9 +175,16 @@ namespace Trainacc.Services
 
         public async Task<List<CreditDto>> GetCreditsByRecordAsync(int recordId)
         {
-            return await _context.Credits
-                .Where(c => c.RecordId == recordId)
-                .Select(c => new CreditDto
+            var credits = await _context.Credits.Where(c => c.AccountId == recordId).ToListAsync();
+            var result = new List<CreditDto>();
+            foreach (var c in credits)
+            {
+                decimal interestRateInMoney = c.InterestRate * c.CreditStartValue / 100m;
+                decimal totalToPay = c.CreditStartValue + interestRateInMoney;
+                decimal monthlyPayment = c.PeriodOfPayment > 0 ? totalToPay / c.PeriodOfPayment : 0;
+                var account = await _context.Accounts.FindAsync(c.AccountId);
+                bool isEnoughMoney = account != null && account.Balance >= monthlyPayment;
+                result.Add(new CreditDto
                 {
                     Id = c.Id,
                     NameOfCredit = c.NameOfCredit,
@@ -103,9 +193,48 @@ namespace Trainacc.Services
                     DateOfOpening = c.DateOfOpening,
                     PeriodOfPayment = c.PeriodOfPayment,
                     InterestRate = c.InterestRate,
-                    RecordId = c.RecordId
-                })
-                .ToListAsync();
+                    AccountId = c.AccountId,
+                    TogetAccountId = c.TogetAccountId,
+                    InterestRateInMoney = interestRateInMoney,
+                    IsOver = c.IsOver,
+                    TotalToPay = totalToPay,
+                    MonthlyPayment = monthlyPayment,
+                    IsEnoughMoney = isEnoughMoney
+                });
+            }
+            return result;
+        }
+
+        public async Task<List<CreditDto>> GetCreditsByAccountAsync(int accountId)
+        {
+            var credits = await _context.Credits.Where(c => c.AccountId == accountId).ToListAsync();
+            var result = new List<CreditDto>();
+            foreach (var c in credits)
+            {
+                decimal interestRateInMoney = c.InterestRate * c.CreditStartValue / 100m;
+                decimal totalToPay = c.CreditStartValue + interestRateInMoney;
+                decimal monthlyPayment = c.PeriodOfPayment > 0 ? totalToPay / c.PeriodOfPayment : 0;
+                var account = await _context.Accounts.FindAsync(c.AccountId);
+                bool isEnoughMoney = account != null && account.Balance >= monthlyPayment;
+                result.Add(new CreditDto
+                {
+                    Id = c.Id,
+                    NameOfCredit = c.NameOfCredit,
+                    CreditStartValue = c.CreditStartValue,
+                    CreditCurrentValue = c.CreditCurrentValue,
+                    DateOfOpening = c.DateOfOpening,
+                    PeriodOfPayment = c.PeriodOfPayment,
+                    InterestRate = c.InterestRate,
+                    AccountId = c.AccountId,
+                    TogetAccountId = c.TogetAccountId,
+                    InterestRateInMoney = interestRateInMoney,
+                    IsOver = c.IsOver,
+                    TotalToPay = totalToPay,
+                    MonthlyPayment = monthlyPayment,
+                    IsEnoughMoney = isEnoughMoney
+                });
+            }
+            return result;
         }
 
         private void AddPenaltyHistory(Credit credit, decimal penalty, string reason)
@@ -146,7 +275,7 @@ namespace Trainacc.Services
                 decimal S = credit.CreditStartValue;
                 decimal payment = S * (monthlyRate * (decimal)Math.Pow((double)(1 + monthlyRate), n)) /
                     ((decimal)Math.Pow((double)(1 + monthlyRate), n) - 1);
-                var account = await _context.Accounts.FirstOrDefaultAsync(a => a.RecordId == credit.RecordId);
+                var account = await _context.Accounts.FirstOrDefaultAsync(a => a.Id == credit.AccountId);
                 if (account != null)
                 {
                     if (credit.CreditCurrentValue > 0)
@@ -181,6 +310,44 @@ namespace Trainacc.Services
                 }
             }
             await _context.SaveChangesAsync();
+        }
+
+        public async Task<bool> CloseCreditAsync(int creditId, int accountId, bool isEarly = false)
+        {
+            var credit = await _context.Credits.FindAsync(creditId);
+            if (credit == null) return false;
+            var account = await _context.Accounts.FindAsync(accountId);
+            if (account == null) return false;
+            var now = DateTime.UtcNow;
+            int monthsPassed = ((now.Year - credit.DateOfOpening.Year) * 12) + now.Month - credit.DateOfOpening.Month;
+            decimal interestRateInMoney;
+            decimal totalToPay;
+            if (isEarly && monthsPassed < credit.PeriodOfPayment)
+            {
+                interestRateInMoney = credit.InterestRate * credit.CreditStartValue / 100m * monthsPassed / credit.PeriodOfPayment;
+                totalToPay = credit.CreditStartValue + interestRateInMoney;
+                if (account.Balance < totalToPay) return false;
+                account.Balance -= totalToPay;
+                _context.Credits.Remove(credit);
+            }
+            else
+            {
+                interestRateInMoney = credit.InterestRate * credit.CreditStartValue / 100m;
+                totalToPay = credit.CreditStartValue + interestRateInMoney;
+                if (account.Balance < totalToPay) return false;
+                account.Balance -= totalToPay;
+                credit.IsOver = true;
+                credit.DateOfClose = now;
+            }
+            _context.Set<CreditOperationHistory>().Add(new CreditOperationHistory {
+                CreditId = credit.Id,
+                OperationType = isEarly ? "Досрочное погашение" : "Погашение",
+                Amount = totalToPay,
+                Date = now,
+                Description = isEarly ? $"Досрочное погашение, месяцев: {monthsPassed}" : "Полное погашение"
+            });
+            await _context.SaveChangesAsync();
+            return true;
         }
 
         public class CreditPenaltyHistoryItem

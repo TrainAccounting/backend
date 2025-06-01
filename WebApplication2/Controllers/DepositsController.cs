@@ -20,7 +20,7 @@ namespace Trainacc.Controllers
         public async Task<IActionResult> Get(
             int? id = null,
             string? mode = null,
-            int? recordId = null)
+            int? accountId = null)
         {
             try
             {
@@ -34,10 +34,10 @@ namespace Trainacc.Controllers
                 {
                     switch (mode.ToLower())
                     {
-                        case "by-record":
-                            if (recordId.HasValue)
-                                return Ok(await _service.GetDepositsByRecordAsync(recordId.Value));
-                            return BadRequest("recordId required");
+                        case "by-account":
+                            if (accountId.HasValue)
+                                return Ok(await _service.GetDepositsByAccountAsync(accountId.Value));
+                            return BadRequest("accountId required");
                         default:
                             return BadRequest("Unknown mode");
                     }
@@ -48,16 +48,12 @@ namespace Trainacc.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Post([FromBody] DepositDto? dto = null)
+        public async Task<IActionResult> Post([FromBody] DepositCreateDto dto, int accountId, int sourceAccountId)
         {
             if (dto == null)
                 return BadRequest("Данные не переданы");
-            try
-            {
-                var created = await _service.CreateDepositAsync(dto);
-                return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
-            }
-            catch { return Problem(); }
+            var created = await _service.CreateDepositAsync(dto, accountId, sourceAccountId);
+            return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
         }
 
         [HttpPut]
@@ -82,6 +78,14 @@ namespace Trainacc.Controllers
                 return NoContent();
             }
             catch { return Problem(); }
+        }
+
+        [HttpPost("close/{depositId}/{accountId}")]
+        public async Task<IActionResult> CloseDeposit(int depositId, int accountId, [FromQuery] bool isEarly = false)
+        {
+            var ok = await _service.CloseDepositAsync(depositId, accountId, isEarly);
+            if (!ok) return BadRequest(isEarly ? "Депозит уже закрыт, не найден или досрочное закрытие невозможно" : "Депозит уже закрыт или не найден");
+            return Ok(isEarly ? "Депозит досрочно закрыт и деньги переведены на счёт" : "Депозит успешно закрыт и деньги переведены на счёт");
         }
     }
 }

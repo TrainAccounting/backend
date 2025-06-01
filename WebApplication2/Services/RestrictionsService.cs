@@ -38,33 +38,34 @@ namespace Trainacc.Services
             };
         }
 
-        public async Task<RestrictionDto> CreateRestrictionAsync(RestrictionDto dto)
+        public async Task<RestrictionDto> CreateRestrictionAsync(RestrictionCreateDto dto, int accountsId)
         {
-            var record = await _context.Records.Include(r => r.Restrictions).FirstOrDefaultAsync(r => r.Id == dto.Id);
-            if (record == null)
-                throw new Exception("Record not found");
-            var sumRestrictions = record.Restrictions.Sum(r => r.RestrictionValue) + dto.RestrictionValue;
+            var account = await _context.Accounts.Include(a => a.Record).FirstOrDefaultAsync(a => a.Id == accountsId);
+            if (account == null)
+                throw new Exception("Account not found");
             var restriction = new Restriction
             {
-                RecordId = dto.Id,
+                AccountId = accountsId,
                 Category = dto.Category,
                 RestrictionValue = dto.RestrictionValue,
-                MoneySpent = dto.MoneySpent
+                MoneySpent = 0
             };
             _context.Restrictions.Add(restriction);
             await _context.SaveChangesAsync();
-            dto.Id = restriction.Id;
-            return dto;
+            return new RestrictionDto
+            {
+                Id = restriction.Id,
+                Category = restriction.Category,
+                RestrictionValue = restriction.RestrictionValue,
+                MoneySpent = restriction.MoneySpent
+            };
         }
 
         public async Task<bool> UpdateRestrictionAsync(int id, RestrictionUpdateDto dto)
         {
             var restriction = await _context.Restrictions.FindAsync(id);
             if (restriction == null) return false;
-            var record = await _context.Records.Include(r => r.Restrictions).FirstOrDefaultAsync(r => r.Id == restriction.RecordId);
-            if (record == null) return false;
             decimal newValue = dto.RestrictionValue ?? restriction.RestrictionValue;
-            var sumRestrictions = record.Restrictions.Where(r => r.Id != id).Sum(r => r.RestrictionValue) + newValue;
             restriction.Category = dto.Category ?? restriction.Category;
             restriction.RestrictionValue = newValue;
             await _context.SaveChangesAsync();
@@ -83,7 +84,7 @@ namespace Trainacc.Services
         public async Task<List<RestrictionDto>> GetRestrictionsByRecordAsync(int recordId)
         {
             return await _context.Restrictions
-                .Where(r => r.RecordId == recordId)
+                .Where(r => r.AccountId == recordId)
                 .Select(r => new RestrictionDto
                 {
                     Id = r.Id,
@@ -96,10 +97,24 @@ namespace Trainacc.Services
 
         public async Task<List<RestrictionDto>> GetExceededRestrictionsAsync(int userId)
         {
-            var records = await _context.Records.Where(r => r.UserId == userId).ToListAsync();
-            var recordIds = records.Select(r => r.Id).ToList();
+            var accounts = await _context.Accounts.Where(a => a.Record != null && a.Record.UserId == userId).ToListAsync();
+            var accountIds = accounts.Select(a => a.Id).ToList();
             return await _context.Restrictions
-                .Where(r => recordIds.Contains(r.RecordId) && r.MoneySpent > r.RestrictionValue)
+                .Where(r => accountIds.Contains(r.AccountId) && r.MoneySpent > r.RestrictionValue)
+                .Select(r => new RestrictionDto
+                {
+                    Id = r.Id,
+                    Category = r.Category,
+                    RestrictionValue = r.RestrictionValue,
+                    MoneySpent = r.MoneySpent
+                })
+                .ToListAsync();
+        }
+
+        public async Task<List<RestrictionDto>> GetRestrictionsByAccountAsync(int accountId)
+        {
+            return await _context.Restrictions
+                .Where(r => r.AccountId == accountId)
                 .Select(r => new RestrictionDto
                 {
                     Id = r.Id,

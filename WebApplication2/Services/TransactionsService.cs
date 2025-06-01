@@ -28,7 +28,7 @@ namespace Trainacc.Services
                 Category = t.Category,
                 TransactionValue = t.TransactionValue,
                 TimeOfTransaction = t.TimeOfTransaction,
-                Type = t.Type
+                IsAdd = t.IsAdd
             }).ToListAsync();
         }
 
@@ -42,75 +42,38 @@ namespace Trainacc.Services
                 Category = t.Category,
                 TransactionValue = t.TransactionValue,
                 TimeOfTransaction = t.TimeOfTransaction,
-                Type = t.Type
+                IsAdd = t.IsAdd
             };
         }
 
-        public async Task<int> ProcessPlannedTransactionsAsync()
+        public async Task<TransactionDto> CreateTransactionAsync(TransactionCreateDto dto, int accountsId)
         {
-            var now = DateTime.UtcNow;
-            var planned = await _context.Transactions
-                .Where(t => t.IsPlanned && !t.IsExecuted && t.PlannedDate != null)
-                .ToListAsync();
-            int processed = 0;
-            foreach (var t in planned)
-            {
-                if (!DateTime.TryParse(t.PlannedDate, out var plannedDate))
-                    continue;
-                if (plannedDate > now)
-                    continue;
-                var account = await _context.Accounts.FirstOrDefaultAsync(a => a.RecordId == t.RecordId);
-                if (account == null) continue;
-                if (t.Type == TransactionType.Expense && account.Balance < t.TransactionValue)
-                    continue;
-                t.IsExecuted = true;
-                t.IsPlanned = false;
-                t.TimeOfTransaction = now;
-                if (t.Type == TransactionType.Income)
-                    account.Balance += t.TransactionValue;
-                else
-                    account.Balance -= t.TransactionValue;
-                processed++;
-            }
-            await _context.SaveChangesAsync();
-            return processed;
-        }
-
-        public async Task<TransactionDto> CreateTransactionAsync(TransactionCreateDto dto)
-        {
-            var account = await _context.Accounts.FirstOrDefaultAsync(a => a.RecordId == dto.RecordId);
+            var account = await _context.Accounts.FirstOrDefaultAsync(a => a.Id == accountsId);
             if (account == null)
                 throw new Exception("Счёт не найден");
-            if (dto.Type == TransactionType.Expense && account.Balance < dto.TransactionValue && !dto.IsPlanned)
-                throw new Exception("Недостаточно средств на счёте для расхода");
             if (dto.TransactionValue < 0)
                 throw new Exception("Сумма операции не может быть отрицательной");
             if (string.IsNullOrWhiteSpace(dto.Category))
                 throw new Exception("Категория обязательна");
-            DateTime timeOfTransaction = DateTime.UtcNow;
-            if (dto.IsPlanned && !string.IsNullOrWhiteSpace(dto.PlannedDate) && DateTime.TryParse(dto.PlannedDate, out var parsedDate))
-                timeOfTransaction = parsedDate;
+            if (!dto.IsAdd && account.Balance < dto.TransactionValue)
+                throw new Exception("Недостаточно средств на счёте для расхода");
+            if (dto.IsAdd && account.Balance + dto.TransactionValue > decimal.MaxValue)
+                throw new Exception("Переполнение баланса счёта");
             var t = new Transactions
             {
                 Category = dto.Category,
                 TransactionValue = dto.TransactionValue,
-                TimeOfTransaction = timeOfTransaction,
-                RecordId = dto.RecordId,
-                Type = dto.Type,
+                TimeOfTransaction = DateTime.UtcNow,
+                AccountId = accountsId,
+                IsAdd = dto.IsAdd,
                 CreatedAt = DateTime.UtcNow,
-                Description = dto.Description,
-                IsPlanned = dto.IsPlanned,
-                PlannedDate = dto.PlannedDate,
-                IsExecuted = !dto.IsPlanned
+                Description = dto.Description
             };
             _context.Transactions.Add(t);
-            if (!dto.IsPlanned)
-            {
-                if (dto.Type == TransactionType.Income)
-                    account.Balance += dto.TransactionValue;
-                else
-                    account.Balance -= dto.TransactionValue;
-            }
+            if (dto.IsAdd)
+                account.Balance += dto.TransactionValue;
+            else
+                account.Balance -= dto.TransactionValue;
             await _context.SaveChangesAsync();
             return new TransactionDto
             {
@@ -118,7 +81,7 @@ namespace Trainacc.Services
                 Category = t.Category,
                 TransactionValue = t.TransactionValue,
                 TimeOfTransaction = t.TimeOfTransaction,
-                Type = t.Type
+                IsAdd = t.IsAdd
             };
         }
 
@@ -126,14 +89,12 @@ namespace Trainacc.Services
         {
             var transaction = await _context.Transactions.FindAsync(id);
             if (transaction == null) return false;
-            var oldType = transaction.Type;
+            var oldIsAdd = transaction.IsAdd;
             var oldValue = transaction.TransactionValue;
-            var oldCategory = transaction.Category;
-            transaction.UpdatedAt = DateTime.UtcNow;
-            var account = await _context.Accounts.FirstOrDefaultAsync(a => a.RecordId == transaction.RecordId);
+            var account = await _context.Accounts.FirstOrDefaultAsync(a => a.Id == transaction.AccountId);
             if (account != null)
             {
-                if (oldType == TransactionType.Income)
+                if (oldIsAdd)
                     account.Balance -= oldValue;
                 else
                     account.Balance += oldValue;
@@ -141,16 +102,24 @@ namespace Trainacc.Services
             if (dto.Category != null)
                 transaction.Category = dto.Category;
             if (dto.TransactionValue.HasValue)
+            {
+                if (dto.TransactionValue.Value < 0)
+                    throw new Exception("Сумма операции не может быть отрицательной");
                 transaction.TransactionValue = dto.TransactionValue.Value;
-            if (dto.Type.HasValue)
-                transaction.Type = dto.Type.Value;
+            }
+            if (dto.IsAdd.HasValue)
+                transaction.IsAdd = dto.IsAdd.Value;
             if (dto.Description != null)
                 transaction.Description = dto.Description;
-            if (string.IsNullOrWhiteSpace(transaction.Category) || transaction.TransactionValue < 0)
+            if (string.IsNullOrWhiteSpace(transaction.Category))
                 return false;
             if (account != null)
             {
-                if (transaction.Type == TransactionType.Income)
+                if (!transaction.IsAdd && account.Balance < transaction.TransactionValue)
+                    throw new Exception("Недостаточно средств на счёте для расхода");
+                if (transaction.IsAdd && account.Balance + transaction.TransactionValue > decimal.MaxValue)
+                    throw new Exception("Переполнение баланса счёта");
+                if (transaction.IsAdd)
                     account.Balance += transaction.TransactionValue;
                 else
                     account.Balance -= transaction.TransactionValue;
@@ -163,10 +132,10 @@ namespace Trainacc.Services
         {
             var transaction = await _context.Transactions.FindAsync(id);
             if (transaction == null) return false;
-            var account = await _context.Accounts.FirstOrDefaultAsync(a => a.RecordId == transaction.RecordId);
+            var account = await _context.Accounts.FirstOrDefaultAsync(a => a.Id == transaction.AccountId);
             if (account != null)
             {
-                if (transaction.Type == TransactionType.Income)
+                if (transaction.IsAdd)
                     account.Balance -= transaction.TransactionValue;
                 else
                     account.Balance += transaction.TransactionValue;
@@ -176,19 +145,20 @@ namespace Trainacc.Services
             return true;
         }
 
-        public async Task<List<TransactionSummaryDto>> GetSummaryByCategoryAsync(int userId, DateTime? from = null, DateTime? to = null)
+        public async Task<List<TransactionSummaryDto>> GetSummaryByCategoryAsync(int userId, bool? isAdd = null, string? category = null, DateTime? from = null, DateTime? to = null)
         {
-            var record = await _context.Records.FirstOrDefaultAsync(r => r.UserId == userId);
-            if (record == null) return new List<TransactionSummaryDto>();
-            var query = _context.Transactions.Where(t => t.RecordId == record.Id);
+            var accounts = await _context.Accounts.Where(a => a.Record != null && a.Record.UserId == userId).ToListAsync();
+            var accountIds = accounts.Select(a => a.Id).ToList();
+            var query = _context.Transactions.Where(t => accountIds.Contains(t.AccountId));
+            if (isAdd.HasValue) query = query.Where(t => t.IsAdd == isAdd);
+            if (!string.IsNullOrEmpty(category)) query = query.Where(t => t.Category == category);
             if (from.HasValue) query = query.Where(t => t.TimeOfTransaction >= from);
             if (to.HasValue) query = query.Where(t => t.TimeOfTransaction <= to);
             return await query
-                .GroupBy(t => new { t.Category, t.Type })
+                .GroupBy(t => t.Category)
                 .Select(g => new TransactionSummaryDto
                 {
-                    Category = g.Key.Category,
-                    Type = g.Key.Type,
+                    Category = g.Key,
                     TotalTransactions = g.Count(),
                     TotalValue = g.Sum(x => x.TransactionValue)
                 })
@@ -198,23 +168,23 @@ namespace Trainacc.Services
         public async Task<List<TransactionDto>> GetTransactionsByRecordAsync(int recordId)
         {
             return await _context.Transactions
-                .Where(t => t.RecordId == recordId)
+                .Where(t => t.AccountId == recordId)
                 .Select(t => new TransactionDto
                 {
                     Id = t.Id,
                     Category = t.Category,
                     TransactionValue = t.TransactionValue,
                     TimeOfTransaction = t.TimeOfTransaction,
-                    Type = t.Type
+                    IsAdd = t.IsAdd
                 })
                 .ToListAsync();
         }
 
         public async Task<List<TransactionSummaryDto>> GetTopExpensesByCategoryAsync(int userId, int topN, DateTime? from = null, DateTime? to = null)
         {
-            var record = await _context.Records.FirstOrDefaultAsync(r => r.UserId == userId);
-            if (record == null) return new List<TransactionSummaryDto>();
-            var query = _context.Transactions.Where(t => t.RecordId == record.Id && t.Type == TransactionType.Expense);
+            var accounts = await _context.Accounts.Where(a => a.Record != null && a.Record.UserId == userId).ToListAsync();
+            var accountIds = accounts.Select(a => a.Id).ToList();
+            var query = _context.Transactions.Where(t => accountIds.Contains(t.AccountId) && !t.IsAdd);
             if (from.HasValue) query = query.Where(t => t.TimeOfTransaction >= from);
             if (to.HasValue) query = query.Where(t => t.TimeOfTransaction <= to);
             return await query
@@ -222,7 +192,6 @@ namespace Trainacc.Services
                 .Select(g => new TransactionSummaryDto
                 {
                     Category = g.Key,
-                    Type = TransactionType.Expense,
                     TotalTransactions = g.Count(),
                     TotalValue = g.Sum(x => x.TransactionValue)
                 })
@@ -231,12 +200,12 @@ namespace Trainacc.Services
                 .ToListAsync();
         }
 
-        public async Task<List<TransactionDto>> FilterTransactionsAsync(int userId, TransactionType? type = null, string? category = null, DateTime? from = null, DateTime? to = null, decimal? min = null, decimal? max = null)
+        public async Task<List<TransactionDto>> FilterTransactionsAsync(int userId, bool? isAdd = null, string? category = null, DateTime? from = null, DateTime? to = null, decimal? min = null, decimal? max = null)
         {
-            var record = await _context.Records.FirstOrDefaultAsync(r => r.UserId == userId);
-            if (record == null) return new List<TransactionDto>();
-            var query = _context.Transactions.Where(t => t.RecordId == record.Id);
-            if (type.HasValue) query = query.Where(t => t.Type == type);
+            var accounts = await _context.Accounts.Where(a => a.Record != null && a.Record.UserId == userId).ToListAsync();
+            var accountIds = accounts.Select(a => a.Id).ToList();
+            var query = _context.Transactions.Where(t => accountIds.Contains(t.AccountId));
+            if (isAdd.HasValue) query = query.Where(t => t.IsAdd == isAdd);
             if (!string.IsNullOrEmpty(category)) query = query.Where(t => t.Category == category);
             if (from.HasValue) query = query.Where(t => t.TimeOfTransaction >= from);
             if (to.HasValue) query = query.Where(t => t.TimeOfTransaction <= to);
@@ -248,17 +217,17 @@ namespace Trainacc.Services
                 Category = t.Category,
                 TransactionValue = t.TransactionValue,
                 TimeOfTransaction = t.TimeOfTransaction,
-                Type = t.Type
+                IsAdd = t.IsAdd
             }).ToListAsync();
         }
 
-        public async Task<List<Transactions>> GetTransactionsForExportAsync(int? recordId, int? userId, DateTime? from, DateTime? to)
+        public async Task<List<Transactions>> GetTransactionsForExportAsync(int? accountId, int? userId, DateTime? from, DateTime? to)
         {
             var query = _context.Transactions.AsQueryable();
-            if (recordId.HasValue)
-                query = query.Where(t => t.RecordId == recordId.Value);
+            if (accountId.HasValue)
+                query = query.Where(t => t.AccountId == accountId.Value);
             if (userId.HasValue)
-                query = query.Where(t => t.Record != null && t.Record.UserId == userId.Value);
+                query = query.Where(t => t.Account != null && t.Account.Record != null && t.Account.Record.UserId == userId.Value);
             if (from.HasValue)
                 query = query.Where(t => t.TimeOfTransaction >= from.Value);
             if (to.HasValue)
@@ -266,9 +235,9 @@ namespace Trainacc.Services
             return await query.ToListAsync();
         }
 
-        public async Task<byte[]> ExportTransactionsToExcelAsync(int? recordId, int? userId, DateTime? from, DateTime? to)
+        public async Task<byte[]> ExportTransactionsToExcelAsync(int? accountId, int? userId, DateTime? from, DateTime? to)
         {
-            var transactions = await GetTransactionsForExportAsync(recordId, userId, from, to);
+            var transactions = await GetTransactionsForExportAsync(accountId, userId, from, to);
             using (var ms = new MemoryStream())
             {
                 using (var document = SpreadsheetDocument.Create(ms, SpreadsheetDocumentType.Workbook))
@@ -285,11 +254,9 @@ namespace Trainacc.Services
                         new Cell { CellValue = new CellValue("Category"), DataType = CellValues.String },
                         new Cell { CellValue = new CellValue("TransactionValue"), DataType = CellValues.String },
                         new Cell { CellValue = new CellValue("TimeOfTransaction"), DataType = CellValues.String },
-                        new Cell { CellValue = new CellValue("Type"), DataType = CellValues.String },
+                        new Cell { CellValue = new CellValue("IsAdd"), DataType = CellValues.String },
                         new Cell { CellValue = new CellValue("Description"), DataType = CellValues.String },
-                        new Cell { CellValue = new CellValue("IsPlanned"), DataType = CellValues.String },
-                        new Cell { CellValue = new CellValue("PlannedDate"), DataType = CellValues.String },
-                        new Cell { CellValue = new CellValue("RecordId"), DataType = CellValues.String }
+                        new Cell { CellValue = new CellValue("AccountId"), DataType = CellValues.String }
                     );
                     sheetData.AppendChild(headerRow);
 
@@ -301,11 +268,9 @@ namespace Trainacc.Services
                             new Cell { CellValue = new CellValue(t.Category ?? ""), DataType = CellValues.String },
                             new Cell { CellValue = new CellValue(t.TransactionValue.ToString()), DataType = CellValues.Number },
                             new Cell { CellValue = new CellValue(t.TimeOfTransaction.ToString("yyyy-MM-dd HH:mm:ss")), DataType = CellValues.String },
-                            new Cell { CellValue = new CellValue(t.Type.ToString()), DataType = CellValues.String },
+                            new Cell { CellValue = new CellValue(t.IsAdd ? "1" : "0"), DataType = CellValues.Number },
                             new Cell { CellValue = new CellValue(t.Description ?? ""), DataType = CellValues.String },
-                            new Cell { CellValue = new CellValue(t.IsPlanned ? "1" : "0"), DataType = CellValues.Number },
-                            new Cell { CellValue = new CellValue(t.PlannedDate ?? ""), DataType = CellValues.String },
-                            new Cell { CellValue = new CellValue(t.RecordId.ToString()), DataType = CellValues.Number }
+                            new Cell { CellValue = new CellValue(t.AccountId.ToString()), DataType = CellValues.Number }
                         );
                         sheetData.AppendChild(row);
                     }
@@ -322,6 +287,89 @@ namespace Trainacc.Services
                 }
                 return ms.ToArray();
             }
+        }
+
+        public async Task<List<TransactionDto>> GetTransactionsByAccountAsync(int accountId)
+        {
+            return await _context.Transactions
+                .Where(t => t.AccountId == accountId)
+                .Select(t => new TransactionDto
+                {
+                    Id = t.Id,
+                    Category = t.Category,
+                    TransactionValue = t.TransactionValue,
+                    TimeOfTransaction = t.TimeOfTransaction,
+                    IsAdd = t.IsAdd
+                })
+                .ToListAsync();
+        }
+
+        public async Task<byte[]> ExportTransactionsToExcelByAccountAsync(int? accountId, int? userId, DateTime? from, DateTime? to)
+        {
+            var transactions = await GetTransactionsForExportByAccountAsync(accountId, userId, from, to);
+            using (var ms = new MemoryStream())
+            {
+                using (var document = SpreadsheetDocument.Create(ms, SpreadsheetDocumentType.Workbook))
+                {
+                    var workbookPart = document.AddWorkbookPart();
+                    workbookPart.Workbook = new Workbook();
+                    var worksheetPart = workbookPart.AddNewPart<WorksheetPart>();
+                    var sheetData = new SheetData();
+                    worksheetPart.Worksheet = new Worksheet(sheetData);
+
+                    var headerRow = new Row();
+                    headerRow.Append(
+                        new Cell { CellValue = new CellValue("Id"), DataType = CellValues.String },
+                        new Cell { CellValue = new CellValue("Category"), DataType = CellValues.String },
+                        new Cell { CellValue = new CellValue("TransactionValue"), DataType = CellValues.String },
+                        new Cell { CellValue = new CellValue("TimeOfTransaction"), DataType = CellValues.String },
+                        new Cell { CellValue = new CellValue("IsAdd"), DataType = CellValues.String },
+                        new Cell { CellValue = new CellValue("Description"), DataType = CellValues.String },
+                        new Cell { CellValue = new CellValue("AccountId"), DataType = CellValues.String }
+                    );
+                    sheetData.AppendChild(headerRow);
+
+                    foreach (var t in transactions)
+                    {
+                        var row = new Row();
+                        row.Append(
+                            new Cell { CellValue = new CellValue(t.Id.ToString()), DataType = CellValues.Number },
+                            new Cell { CellValue = new CellValue(t.Category ?? ""), DataType = CellValues.String },
+                            new Cell { CellValue = new CellValue(t.TransactionValue.ToString()), DataType = CellValues.Number },
+                            new Cell { CellValue = new CellValue(t.TimeOfTransaction.ToString("yyyy-MM-dd HH:mm:ss")), DataType = CellValues.String },
+                            new Cell { CellValue = new CellValue(t.IsAdd ? "1" : "0"), DataType = CellValues.Number },
+                            new Cell { CellValue = new CellValue(t.Description ?? ""), DataType = CellValues.String },
+                            new Cell { CellValue = new CellValue(t.AccountId.ToString()), DataType = CellValues.Number }
+                        );
+                        sheetData.AppendChild(row);
+                    }
+
+                    var sheets = new Sheets();
+                    sheets.Append(new Sheet
+                    {
+                        Id = workbookPart.GetIdOfPart(worksheetPart),
+                        SheetId = 1,
+                        Name = "Transactions"
+                    });
+                    workbookPart.Workbook.AppendChild(sheets);
+                    workbookPart.Workbook.Save();
+                }
+                return ms.ToArray();
+            }
+        }
+
+        public async Task<List<Transactions>> GetTransactionsForExportByAccountAsync(int? accountId, int? userId, DateTime? from, DateTime? to)
+        {
+            var query = _context.Transactions.AsQueryable();
+            if (accountId.HasValue)
+                query = query.Where(t => t.AccountId == accountId.Value);
+            if (userId.HasValue)
+                query = query.Where(t => t.Account != null && t.Account.Record != null && t.Account.Record.UserId == userId.Value);
+            if (from.HasValue)
+                query = query.Where(t => t.TimeOfTransaction >= from.Value);
+            if (to.HasValue)
+                query = query.Where(t => t.TimeOfTransaction <= to.Value);
+            return await query.ToListAsync();
         }
     }
 }

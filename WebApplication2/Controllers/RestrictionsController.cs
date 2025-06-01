@@ -21,7 +21,7 @@ namespace Trainacc.Controllers
         public async Task<IActionResult> Get(
             int? id = null,
             string? mode = null,
-            int? recordId = null,
+            int? accountId = null,
             int? userId = null 
         )
         {
@@ -38,10 +38,10 @@ namespace Trainacc.Controllers
                 {
                     switch (mode.ToLower())
                     {
-                        case "by-record":
-                            if (recordId.HasValue)
-                                return Ok(await _service.GetRestrictionsByRecordAsync(recordId.Value));
-                            return BadRequest("recordId required");
+                        case "by-account":
+                            if (accountId.HasValue)
+                                return Ok(await _service.GetRestrictionsByAccountAsync(accountId.Value));
+                            return BadRequest("accountId required");
                         case "exceeded":
                             return BadRequest("Режим 'exceeded' не поддерживается");
                         default:
@@ -55,13 +55,15 @@ namespace Trainacc.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Post([FromBody] RestrictionDto? dto = null)
+        public async Task<IActionResult> Post([FromBody] RestrictionCreateDto? dto = null, int? accountsId = null)
         {
             if (dto == null)
                 return BadRequest("Данные не переданы");
+            if (accountsId == null)
+                return BadRequest("Не передан accountsId");
             try
             {
-                var created = await _service.CreateRestrictionAsync(dto);
+                var created = await _service.CreateRestrictionAsync(dto, accountsId.Value);
                 return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
             }
             catch { return Problem(); }

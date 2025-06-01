@@ -75,13 +75,15 @@ namespace Trainacc.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Post([FromBody] AccountCreateDto? dto = null)
+        public async Task<IActionResult> Post([FromBody] AccountCreateDto? dto = null, int? recordId = null)
         {
             if (dto == null)
                 return BadRequest("Данные не переданы");
+            if (!recordId.HasValue)
+                return BadRequest("userId обязателен для создания записи");
             try
             {
-                var created = await _service.CreateAccountAsync(dto);
+                var created = await _service.CreateAccountAsync(dto, recordId.Value);
                 if (created == null) return NotFound("Record not found");
                 return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
             }

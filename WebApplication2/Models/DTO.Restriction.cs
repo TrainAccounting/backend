@@ -13,7 +13,6 @@ namespace Trainacc.Models
     {
         public string? Category { get; set; }
         public decimal RestrictionValue { get; set; }
-        public int RecordId { get; set; }
     }
 
     public class RestrictionUpdateDto

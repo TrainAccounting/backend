@@ -21,9 +21,9 @@ namespace Trainacc.Controllers
         public async Task<IActionResult> Get(
             int? id = null,
             string? mode = null,
-            int? recordId = null,
+            int? accountId = null,
             int? topN = null,
-            TransactionType? type = null,
+            bool? isAdd = null,
             string? category = null,
             DateTime? from = null,
             DateTime? to = null,
@@ -48,7 +48,7 @@ namespace Trainacc.Controllers
                         case "summary":
                             if (!userId.HasValue)
                                 return BadRequest("userId обязателен для summary");
-                            return Ok(await _service.GetSummaryByCategoryAsync(userId.Value, from, to));
+                            return Ok(await _service.GetSummaryByCategoryAsync(userId.Value, isAdd, category, from, to));
                         case "top":
                             if (!userId.HasValue)
                                 return BadRequest("userId обязателен для top");
@@ -56,13 +56,13 @@ namespace Trainacc.Controllers
                         case "filter":
                             if (!userId.HasValue)
                                 return BadRequest("userId обязателен для filter");
-                            return Ok(await _service.FilterTransactionsAsync(userId.Value, type, category, from, to, min, max));
-                        case "by-record":
-                            if (recordId.HasValue)
-                                return Ok(await _service.GetTransactionsByRecordAsync(recordId.Value));
-                            return BadRequest("recordId required");
+                            return Ok(await _service.FilterTransactionsAsync(userId.Value, isAdd, category, from, to, min, max));
+                        case "by-account":
+                            if (accountId.HasValue)
+                                return Ok(await _service.GetTransactionsByAccountAsync(accountId.Value));
+                            return BadRequest("accountId required");
                         case "export":
-                            var excelBytes = await _service.ExportTransactionsToExcelAsync(recordId, userId, from, to);
+                            var excelBytes = await _service.ExportTransactionsToExcelByAccountAsync(accountId, userId, from, to);
                             return File(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"transactions_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
                         default:
                             return BadRequest("Unknown mode");
@@ -75,25 +75,26 @@ namespace Trainacc.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Post([FromBody] TransactionCreateDto? dto = null)
+        public async Task<IActionResult> Post([FromBody] TransactionCreateDto? dto = null, int? accountsId = null)
         {
             if (dto == null)
                 return BadRequest("Данные не переданы");
-            if (!Enum.IsDefined(typeof(TransactionType), dto.Type))
-                return BadRequest("Некорректный тип транзакции (Type)");
+            if (!accountsId.HasValue)
+                return BadRequest("accountId обязателен для создания записи");
             try
             {
-                var created = await _service.CreateTransactionAsync(dto);
+                var created = await _service.CreateTransactionAsync(dto, accountsId.Value);
                 return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
             }
-            catch { return Problem(); }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         [HttpPut]
         public async Task<IActionResult> Put(int id, [FromBody] TransactionUpdateDto dto)
         {
-            if (dto.Type.HasValue && !Enum.IsDefined(typeof(TransactionType), dto.Type.Value))
-                return BadRequest("Некорректный тип транзакции (Type)");
             try
             {
                 var ok = await _service.UpdateTransactionAsync(id, dto);
