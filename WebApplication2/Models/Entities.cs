@@ -124,27 +124,6 @@ namespace Trainacc.Models
         public int OverdueCount { get; set; } 
         public decimal PenaltySum { get; set; } 
     }
-    public class DepositOperationHistory
-    {
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public int Id { get; set; }
-        public int DepositId { get; set; }
-        public string OperationType { get; set; } = string.Empty;
-        public decimal Amount { get; set; }
-        public DateTime Date { get; set; } = DateTime.UtcNow;
-        public string? Description { get; set; }
-    }
-
-    public class CreditOperationHistory
-    {
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public int Id { get; set; }
-        public int CreditId { get; set; }
-        public string OperationType { get; set; } = string.Empty; 
-        public decimal Amount { get; set; }
-        public DateTime Date { get; set; } = DateTime.UtcNow;
-        public string? Description { get; set; }
-    }
     public enum PaymentType
     {
         Monthly = 0

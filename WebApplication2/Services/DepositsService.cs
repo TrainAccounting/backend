@@ -251,13 +251,6 @@ namespace Trainacc.Services
                 deposit.IsOver = true;
                 deposit.DateOfClose = now;
             }
-            _context.Set<DepositOperationHistory>().Add(new DepositOperationHistory {
-                DepositId = deposit.Id,
-                OperationType = isEarly ? "Досрочное закрытие" : "Закрытие",
-                Amount = payout,
-                Date = now,
-                Description = isEarly ? $"Досрочное закрытие, месяцев: {monthsPassed}" : "Полное закрытие"
-            });
             await _context.SaveChangesAsync();
             return true;
         }

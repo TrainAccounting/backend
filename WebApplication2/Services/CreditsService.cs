@@ -339,13 +339,6 @@ namespace Trainacc.Services
                 credit.IsOver = true;
                 credit.DateOfClose = now;
             }
-            _context.Set<CreditOperationHistory>().Add(new CreditOperationHistory {
-                CreditId = credit.Id,
-                OperationType = isEarly ? "Досрочное погашение" : "Погашение",
-                Amount = totalToPay,
-                Date = now,
-                Description = isEarly ? $"Досрочное погашение, месяцев: {monthsPassed}" : "Полное погашение"
-            });
             await _context.SaveChangesAsync();
             return true;
         }

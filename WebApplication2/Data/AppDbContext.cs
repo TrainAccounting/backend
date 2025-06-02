@@ -7,7 +7,7 @@ namespace Trainacc.Data
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
-            //Database.EnsureDeleted();
+            // Database.EnsureDeleted();
             Database.EnsureCreated();
         }
         public DbSet<Users> Users { get; set; }
@@ -17,8 +17,6 @@ namespace Trainacc.Data
         public DbSet<Transactions> Transactions { get; set; }
         public DbSet<Deposit> Deposits { get; set; }
         public DbSet<Credit> Credits { get; set; }
-        public DbSet<DepositOperationHistory> DepositOperationHistories { get; set; }
-        public DbSet<CreditOperationHistory> CreditOperationHistories { get; set; }
         public DbSet<RegularTransaction> RegularTransactions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
