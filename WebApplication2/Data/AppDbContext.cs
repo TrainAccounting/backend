@@ -7,7 +7,7 @@ namespace Trainacc.Data
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
-            // Database.EnsureDeleted();
+            //Database.EnsureDeleted();
             Database.EnsureCreated();
         }
         public DbSet<Users> Users { get; set; }
@@ -17,6 +17,7 @@ namespace Trainacc.Data
         public DbSet<Transactions> Transactions { get; set; }
         public DbSet<Deposit> Deposits { get; set; }
         public DbSet<Credit> Credits { get; set; }
+        public DbSet<RegularTransaction> RegularTransactions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -33,38 +34,40 @@ namespace Trainacc.Data
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Record>()
-                .HasMany(r => r.Restrictions)
-                .WithOne(r => r.Record)
-                .HasForeignKey(r => r.RecordId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<Record>()
                 .HasMany(r => r.Accounts)
                 .WithOne(r => r.Record)
                 .HasForeignKey(a => a.RecordId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<Record>()
-                .HasMany(r => r.Transactions)
-                .WithOne(r => r.Record)
-                .HasForeignKey(t => t.RecordId)
+            modelBuilder.Entity<Account>()
+                .HasMany(a => a.Restrictions)
+                .WithOne(r => r.Account)
+                .HasForeignKey(r => r.AccountId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<Record>()
-                .HasMany(r => r.Deposits)
-                .WithOne(r => r.Record)
-                .HasForeignKey(d => d.RecordId)
+            modelBuilder.Entity<Account>()
+                .HasMany(a => a.Transactions)
+                .WithOne(t => t.Account)
+                .HasForeignKey(t => t.AccountId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<Record>()
-                .HasMany(r => r.Credits)
-                .WithOne(r => r.Record)
-                .HasForeignKey(c => c.RecordId)
+            modelBuilder.Entity<Account>()
+                .HasMany(a => a.Deposits)
+                .WithOne(d => d.Account)
+                .HasForeignKey(d => d.AccountId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<Transactions>()
-                .Property(t => t.Type)
-                .HasConversion<string>();
+            modelBuilder.Entity<Account>()
+                .HasMany(a => a.Credits)
+                .WithOne(c => c.Account)
+                .HasForeignKey(c => c.AccountId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Account>()
+                .HasMany(a => a.RegularTransactions)
+                .WithOne(r => r.Account)
+                .HasForeignKey(r => r.AccountId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

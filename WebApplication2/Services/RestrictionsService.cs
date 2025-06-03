@@ -16,58 +16,59 @@ namespace Trainacc.Services
 
         public async Task<List<RestrictionDto>> GetRestrictionsAsync()
         {
-            return await _context.Restrictions.Select(r => new RestrictionDto
-            {
-                Id = r.Id,
-                Category = r.Category,
-                RestrictionValue = r.RestrictionValue,
-                MoneySpent = r.MoneySpent,
-                Name = r.Name,
-                Description = r.Description,
-                IsActive = r.IsActive
-            }).ToListAsync();
+            return await _context.Restrictions
+                .Select(r => new RestrictionDto
+                {
+                    Id = r.Id,
+                    Category = r.Category,
+                    RestrictionValue = r.RestrictionValue,
+                    MoneySpent = r.MoneySpent
+                }).ToListAsync();
         }
 
         public async Task<RestrictionDto?> GetRestrictionAsync(int id)
         {
-            var r = await _context.Restrictions.FindAsync(id);
+            var r = await _context.Restrictions.FirstOrDefaultAsync(x => x.Id == id);
             if (r == null) return null;
             return new RestrictionDto
             {
                 Id = r.Id,
                 Category = r.Category,
                 RestrictionValue = r.RestrictionValue,
-                MoneySpent = r.MoneySpent,
-                Name = r.Name,
-                Description = r.Description,
-                IsActive = r.IsActive
+                MoneySpent = r.MoneySpent
             };
         }
 
-        public async Task<RestrictionDto> CreateRestrictionAsync(RestrictionDto dto)
+        public async Task<RestrictionDto> CreateRestrictionAsync(RestrictionCreateDto dto, int accountsId)
         {
+            var account = await _context.Accounts.Include(a => a.Record).FirstOrDefaultAsync(a => a.Id == accountsId);
+            if (account == null)
+                throw new Exception("Account not found");
             var restriction = new Restriction
             {
-                Name = dto.Name,
-                Description = dto.Description,
-                IsActive = dto.IsActive,
-                RecordId = dto.Id,
+                AccountId = accountsId,
                 Category = dto.Category,
                 RestrictionValue = dto.RestrictionValue,
-                MoneySpent = dto.MoneySpent
+                MoneySpent = 0
             };
             _context.Restrictions.Add(restriction);
             await _context.SaveChangesAsync();
-            dto.Id = restriction.Id;
-            return dto;
+            return new RestrictionDto
+            {
+                Id = restriction.Id,
+                Category = restriction.Category,
+                RestrictionValue = restriction.RestrictionValue,
+                MoneySpent = restriction.MoneySpent
+            };
         }
 
         public async Task<bool> UpdateRestrictionAsync(int id, RestrictionUpdateDto dto)
         {
             var restriction = await _context.Restrictions.FindAsync(id);
             if (restriction == null) return false;
+            decimal newValue = dto.RestrictionValue ?? restriction.RestrictionValue;
             restriction.Category = dto.Category ?? restriction.Category;
-            restriction.RestrictionValue = dto.RestrictionValue ?? restriction.RestrictionValue;
+            restriction.RestrictionValue = newValue;
             await _context.SaveChangesAsync();
             return true;
         }
@@ -84,45 +85,43 @@ namespace Trainacc.Services
         public async Task<List<RestrictionDto>> GetRestrictionsByRecordAsync(int recordId)
         {
             return await _context.Restrictions
-                .Where(r => r.RecordId == recordId)
+                .Where(r => r.AccountId == recordId)
                 .Select(r => new RestrictionDto
                 {
                     Id = r.Id,
                     Category = r.Category,
                     RestrictionValue = r.RestrictionValue,
-                    MoneySpent = r.MoneySpent,
-                    Name = r.Name,
-                    Description = r.Description,
-                    IsActive = r.IsActive
+                    MoneySpent = r.MoneySpent
                 })
                 .ToListAsync();
         }
 
-        public async Task UpdateRestrictionsSpentAsync(int recordId, string? category, decimal delta)
-        {
-            var restriction = await _context.Restrictions.FirstOrDefaultAsync(r => r.RecordId == recordId && r.Category == category && r.IsActive);
-            if (restriction != null)
-            {
-                restriction.MoneySpent += delta;
-                await _context.SaveChangesAsync();
-            }
-        }
-
         public async Task<List<RestrictionDto>> GetExceededRestrictionsAsync(int userId)
         {
-            var record = await _context.Records.FirstOrDefaultAsync(r => r.UserId == userId);
-            if (record == null) return new List<RestrictionDto>();
+            var accounts = await _context.Accounts.Where(a => a.Record != null && a.Record.UserId == userId).ToListAsync();
+            var accountIds = accounts.Select(a => a.Id).ToList();
             return await _context.Restrictions
-                .Where(r => r.RecordId == record.Id && r.IsActive && r.MoneySpent > r.RestrictionValue)
+                .Where(r => accountIds.Contains(r.AccountId) && r.MoneySpent > r.RestrictionValue)
                 .Select(r => new RestrictionDto
                 {
                     Id = r.Id,
                     Category = r.Category,
                     RestrictionValue = r.RestrictionValue,
-                    MoneySpent = r.MoneySpent,
-                    Name = r.Name,
-                    Description = r.Description,
-                    IsActive = r.IsActive
+                    MoneySpent = r.MoneySpent
+                })
+                .ToListAsync();
+        }
+
+        public async Task<List<RestrictionDto>> GetRestrictionsByAccountAsync(int accountId)
+        {
+            return await _context.Restrictions
+                .Where(r => r.AccountId == accountId)
+                .Select(r => new RestrictionDto
+                {
+                    Id = r.Id,
+                    Category = r.Category,
+                    RestrictionValue = r.RestrictionValue,
+                    MoneySpent = r.MoneySpent
                 })
                 .ToListAsync();
         }

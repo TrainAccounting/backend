@@ -6,7 +6,7 @@ using Trainacc.Services;
 
 namespace Trainacc.Controllers
 {
-    [Authorize]
+    // [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     [ServiceFilter(typeof(LogActionFilter))]
@@ -22,53 +22,68 @@ namespace Trainacc.Controllers
             string? mode = null,
             int? recordId = null,
             DateTime? from = null,
-            DateTime? to = null)
+            DateTime? to = null,
+            int? userId = null
+        )
         {
             try
             {
-                var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
                 if (id.HasValue)
                 {
                     var result = await _service.GetAccountAsync(id.Value);
                     if (result == null) return NotFound();
                     return Ok(result);
                 }
+
                 if (!string.IsNullOrEmpty(mode))
                 {
                     switch (mode.ToLower())
                     {
                         case "user-balance":
-                            var balance = await _service.GetUserTotalBalanceAsync(userId);
+                            if (!userId.HasValue)
+                                return BadRequest("userId обязателен для user-balance");
+                            var balance = await _service.GetUserTotalBalanceAsync(userId.Value);
                             return Ok(balance);
+
                         case "summary":
-                            var summaries = await _service.GetAccountSummariesAsync(userId);
+                            if (!userId.HasValue)
+                                return BadRequest("userId обязателен для summary");
+                            var summaries = await _service.GetAccountSummariesAsync(userId.Value);
                             return Ok(summaries);
+
                         case "by-record":
                             if (recordId.HasValue)
                                 return Ok(await _service.GetAccountsByRecordAsync(recordId.Value));
                             return BadRequest("recordId required");
+
                         case "balance-history":
+                            if (!userId.HasValue)
+                                return BadRequest("userId обязателен для balance-history");
                             if (!from.HasValue || !to.HasValue)
                                 return BadRequest("from и to обязательны");
-                            var history = await _service.GetBalanceHistoryAsync(userId, from.Value, to.Value);
+                            var history = await _service.GetBalanceHistoryAsync(userId.Value, from.Value, to.Value);
                             return Ok(history.Select(x => new { date = x.Date, balance = x.Balance }));
+
                         default:
                             return BadRequest("Unknown mode");
                     }
                 }
+
                 return Ok(await _service.GetAccountsAsync());
             }
             catch { return Problem(); }
         }
 
         [HttpPost]
-        public async Task<IActionResult> Post([FromBody] AccountCreateDto? dto = null)
+        public async Task<IActionResult> Post([FromBody] AccountCreateDto? dto = null, int? recordId = null)
         {
             if (dto == null)
                 return BadRequest("Данные не переданы");
+            if (!recordId.HasValue)
+                return BadRequest("userId обязателен для создания записи");
             try
             {
-                var created = await _service.CreateAccountAsync(dto);
+                var created = await _service.CreateAccountAsync(dto, recordId.Value);
                 if (created == null) return NotFound("Record not found");
                 return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
             }

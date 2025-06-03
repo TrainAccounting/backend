@@ -20,13 +20,12 @@ namespace Trainacc.Models
     {
         [Required]
         public string? NameOfAccount { get; set; }
-        [Required]
-        public int RecordId { get; set; }
     }
 
     public class AccountUpdateDto
     {
         public string? NameOfAccount { get; set; }
+        public decimal? Balance { get; set; }
     }
 
     public class AccountReportDto

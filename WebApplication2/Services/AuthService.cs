@@ -8,11 +8,11 @@ namespace Trainacc.Services
     public class AuthService
     {
         private readonly AppDbContext _context;
-        private readonly TokenService _tokenService;
-        public AuthService(AppDbContext context, TokenService tokenService)
+        // private readonly TokenService _tokenService;
+        public AuthService(AppDbContext context/*, TokenService tokenService*/)
         {
             _context = context;
-            _tokenService = tokenService;
+            // _tokenService = tokenService;
         }
 
         public async Task<(UserAuthDto? result, string? error)> RegisterAsync(UserCreateDto userDto)
@@ -53,14 +53,14 @@ namespace Trainacc.Services
             _context.Accounts.Add(account);
             await _context.SaveChangesAsync();
 
-            var token = _tokenService.GenerateToken(user, record.Id);
+            // var token = _tokenService.GenerateToken(user, record.Id);
 
             return (new UserAuthDto
             {
                 Id = user.Id,
                 Email = user.Email ?? string.Empty,
                 Role = user.Role ?? string.Empty,
-                Token = token
+                // Token = token
             }, null);
         }
 
@@ -72,14 +72,14 @@ namespace Trainacc.Services
 
             var record = await _context.Records.FirstOrDefaultAsync(r => r.UserId == user.Id);
             int? recordId = record?.Id;
-            var token = _tokenService.GenerateToken(user, recordId);
+            // var token = _tokenService.GenerateToken(user, recordId);
 
             return (new UserAuthDto
             {
                 Id = user.Id,
                 Email = user.Email ?? string.Empty,
                 Role = user.Role ?? string.Empty,
-                Token = token
+                // Token = token
             }, null);
         }
     }

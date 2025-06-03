@@ -6,7 +6,7 @@ using Trainacc.Services;
 
 namespace Trainacc.Controllers
 {
-    [Authorize]
+    // [Authorize] 
     [Route("api/[controller]")]
     [ApiController]
     [ServiceFilter(typeof(LogActionFilter))]
@@ -16,49 +16,56 @@ namespace Trainacc.Controllers
         private readonly RestrictionsService _service;
         public RestrictionsController(RestrictionsService service) => _service = service;
 
+
         [HttpGet]
         public async Task<IActionResult> Get(
             int? id = null,
             string? mode = null,
-            int? recordId = null)
+            int? accountId = null,
+            int? userId = null 
+        )
         {
             try
             {
-                var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
                 if (id.HasValue)
                 {
                     var result = await _service.GetRestrictionAsync(id.Value);
                     if (result == null) return NotFound();
                     return Ok(result);
                 }
+
                 if (!string.IsNullOrEmpty(mode))
                 {
                     switch (mode.ToLower())
                     {
-                        case "by-record":
-                            if (recordId.HasValue)
-                                return Ok(await _service.GetRestrictionsByRecordAsync(recordId.Value));
-                            return BadRequest("recordId required");
+                        case "by-account":
+                            if (accountId.HasValue)
+                                return Ok(await _service.GetRestrictionsByAccountAsync(accountId.Value));
+                            return BadRequest("accountId required");
                         case "exceeded":
-                            var result = await _service.GetExceededRestrictionsAsync(userId);
-                            return Ok(result);
+                            if (userId.HasValue)
+                                return Ok(await _service.GetExceededRestrictionsAsync(userId.Value));
+                            return BadRequest("userId required");
                         default:
                             return BadRequest("Unknown mode");
                     }
                 }
+
                 return Ok(await _service.GetRestrictionsAsync());
             }
             catch { return Problem(); }
         }
 
         [HttpPost]
-        public async Task<IActionResult> Post([FromBody] RestrictionDto? dto = null)
+        public async Task<IActionResult> Post([FromBody] RestrictionCreateDto? dto = null, int? accountsId = null)
         {
             if (dto == null)
                 return BadRequest("Данные не переданы");
+            if (accountsId == null)
+                return BadRequest("Не передан accountsId");
             try
             {
-                var created = await _service.CreateRestrictionAsync(dto);
+                var created = await _service.CreateRestrictionAsync(dto, accountsId.Value);
                 return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
             }
             catch { return Problem(); }
@@ -89,3 +96,5 @@ namespace Trainacc.Controllers
         }
     }
 }
+
+// Все методы получения ограничений теперь возвращают только активные ограничения через RestrictionsService

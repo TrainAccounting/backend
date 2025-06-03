@@ -1,34 +1,35 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+// using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
+// using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using System.Text;
+// using System.Text;
 using Trainacc.Data;
 using Trainacc.Filters;
 using Trainacc.Services;
-using System.Security.Claims;
+// using System.Security.Claims;
+using Trainacc.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? string.Empty)),
-            RoleClaimType = ClaimTypes.Role
-        };
-    });
+// builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+//     .AddJwtBearer(options =>
+//     {
+//         options.TokenValidationParameters = new TokenValidationParameters
+//         {
+//             ValidateIssuer = true,
+//             ValidateAudience = true,
+//             ValidateLifetime = true,
+//             ValidateIssuerSigningKey = true,
+//             ValidIssuer = builder.Configuration["Jwt:Issuer"],
+//             ValidAudience = builder.Configuration["Jwt:Audience"],
+//             IssuerSigningKey = new SymmetricSecurityKey(
+//                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? string.Empty)),
+//             RoleClaimType = ClaimTypes.Role
+//         };
+//     });
 
 builder.Services.AddControllers(options =>
 {
@@ -72,13 +73,13 @@ builder.Services.AddSwaggerGen(c =>
     c.OperationFilter<Trainacc.Filters.ParamDescriptionFilter>();
 });
 
-builder.Services.AddAuthorization();
-builder.Services.AddScoped<TokenService>();
+// builder.Services.AddAuthorization();
+// builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<LogActionFilter>();
 builder.Services.AddScoped<ETagFilter>();
 builder.Services.AddScoped<ValidateModelAttribute>();
-//builder.Services.AddScoped<RoleBasedAuthFilter>(_ =>
-//    new RoleBasedAuthFilter("Admin"));
+builder.Services.AddScoped<RoleBasedAuthFilter>(_ =>
+    new RoleBasedAuthFilter("Admin"));
 builder.Services.AddScoped<Trainacc.Services.UsersService>();
 builder.Services.AddScoped<Trainacc.Services.AccountsService>();
 builder.Services.AddScoped<Trainacc.Services.CreditsService>();
@@ -92,12 +93,14 @@ builder.Services.AddScoped<Trainacc.Services.TransactionsService>(provider =>
 });
 builder.Services.AddScoped<Trainacc.Services.RecordsService>();
 builder.Services.AddScoped<Trainacc.Services.AuthService>();
+builder.Services.AddScoped<Trainacc.Services.RegularTransactionsService>();
+builder.Services.AddHostedService<Trainacc.Background.RegularTransactionsBackgroundService>();
 
 builder.Services.AddCors(option =>
 {
     option.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins("http://localhost:5173");
+        policy.WithOrigins("http://localhost:3000");
         policy.AllowAnyHeader();
         policy.AllowAnyMethod();
     });
@@ -112,15 +115,20 @@ if (app.Environment.IsDevelopment())
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Financial API V1");
         c.RoutePrefix = "swagger";
+        c.InjectJavascript("/swagger-authtoken.js");
     });
 }
 
-app.UseCors();
+app.UseStaticFiles();
 
 app.UseHttpsRedirection();
 
-app.UseAuthentication();
-app.UseAuthorization();
+app.UseCors();
+
+// app.UseAuthentication();
+// app.UseAuthorization();
+
+app.UseMiddleware<Trainacc.Middleware.ErrorHandlingMiddleware>();
 
 app.MapControllers();
 

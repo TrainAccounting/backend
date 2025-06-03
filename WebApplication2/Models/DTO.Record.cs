@@ -9,6 +9,9 @@ namespace Trainacc.Models
         public UserDto? User { get; set; }
         public List<AccountSummaryDto> Accounts { get; set; } = new();
         public List<TransactionSummaryDto> Transactions { get; set; } = new();
+        public string? Currency { get; set; }
+        public decimal Debit { get; set; }
+        public decimal Credit { get; set; }
     }
 
     public class RecordCreateDto

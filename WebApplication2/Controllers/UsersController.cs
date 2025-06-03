@@ -1,10 +1,13 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Trainacc.Models;
 using Trainacc.Filters;
 using Trainacc.Services;
+using Microsoft.EntityFrameworkCore;
 
 namespace Trainacc.Controllers
 {
+    // [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     [ServiceFilter(typeof(LogActionFilter))]
@@ -21,7 +24,7 @@ namespace Trainacc.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Get(int? id = null)
+        public async Task<IActionResult> Get(int? id = null, string? email = null, string? password = null)
         {
             try
             {
@@ -31,12 +34,20 @@ namespace Trainacc.Controllers
                     if (result == null) return NotFound();
                     return Ok(result);
                 }
+                if (!string.IsNullOrEmpty(email) && !string.IsNullOrEmpty(password))
+                {
+                    var user = await _service.GetUserByCredentialsAsync(email, password);
+                    if (user == null)
+                        return NotFound("Пользователь с такими данными не найден или пароль неверный.");
+                    return Ok(new { id = user?.Id });
+                }
                 return Ok(await _service.GetUsersAsync());
             }
             catch { return Problem(); }
         }
 
         [HttpPut]
+        // [Authorize]
         [ServiceFilter(typeof(ValidateModelAttribute))]
         public async Task<IActionResult> Put(int id, [FromBody] UserUpdateDto userDto)
         {
@@ -50,6 +61,7 @@ namespace Trainacc.Controllers
         }
 
         [HttpDelete]
+        // [Authorize]
         public async Task<IActionResult> Delete(int id)
         {
             try
@@ -59,6 +71,17 @@ namespace Trainacc.Controllers
                 return NoContent();
             }
             catch { return Problem(); }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Post([FromBody] UserCreateDto userDto)
+        {
+            var (user, record, account, error) = await _service.RegisterUserWithRecordAndAccountAsync(userDto);
+            if (error != null)
+                return BadRequest(error);
+            if (user == null || record == null || account == null)
+                return Problem("Ошибка создания пользователя, записи или счёта (user/record/account is null)");
+            return Ok(new { user.Id, user.Email, recordId = record.Id, accountId = account.Id });
         }
     }
 }

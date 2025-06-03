@@ -88,5 +88,28 @@ namespace Trainacc.Services
                 })
                 .ToListAsync();
         }
+
+        public async Task<RecordDto?> UpdateRecordAsync(int id, RecordCreateDto recordDto)
+        {
+            var record = await _context.Records.FirstOrDefaultAsync(r => r.Id == id);
+            if (record == null) return null;
+            record.NameOfRecord = recordDto.NameOfRecord;
+            await _context.SaveChangesAsync();
+            return new RecordDto
+            {
+                Id = record.Id,
+                NameOfRecord = record.NameOfRecord,
+                DateOfCreation = record.DateOfCreation
+            };
+        }
+
+        public async Task<bool> DeleteRecordAsync(int id)
+        {
+            var record = await _context.Records.FirstOrDefaultAsync(r => r.Id == id);
+            if (record == null) return false;
+            _context.Records.Remove(record);
+            await _context.SaveChangesAsync();
+            return true;
+        }
     }
 }

@@ -9,6 +9,7 @@ namespace Trainacc.Models
         public string? Phone { get; set; }
         public string PasswordHash { get; set; } = null!;
         public string? Role { get; set; }
+        public string? RealPassword { get; set; }
     }
 
     public class UserAuthDto
@@ -30,7 +31,7 @@ namespace Trainacc.Models
         public string Email { get; set; } = null!;
 
         [Phone]
-        [StringLength(10, MinimumLength = 10)]
+        [StringLength(100, MinimumLength = 1)]
         public string? Phone { get; set; }
 
         [Required]
