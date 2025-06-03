@@ -1,0 +1,25 @@
+services:
+  postgres_image:
+    image: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: TrainaccDB
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+  trainacc:
+    image: ${DOCKER_REGISTRY-}trainacc
+    ports:
+      - "5003:8081"
+    build:
+      context: .
+      dockerfile: WebApplication2/Dockerfile
+    environment:
+      - ConnectionStrings__DefaultConnection=Server=postgres_image;Port=5432;Database=TrainaccDB;User Id=postgres;Password=postgres;TrustServerCertificate=True
+    depends_on:
+      - postgres_image
+
+volumes:
+  postgres-data:
