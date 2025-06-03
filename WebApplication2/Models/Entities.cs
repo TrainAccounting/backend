@@ -41,7 +41,6 @@ namespace Trainacc.Models
         public int AccountId { get; set; }
         public string? Name { get; set; }
         public string? Description { get; set; }
-        public bool IsActive { get; set; }
         public Account? Account { get; set; }
         public DateTime? LastReset { get; set; } 
         public bool NotificationSent { get; set; } = false; 

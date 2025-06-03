@@ -93,12 +93,14 @@ builder.Services.AddScoped<Trainacc.Services.TransactionsService>(provider =>
 });
 builder.Services.AddScoped<Trainacc.Services.RecordsService>();
 builder.Services.AddScoped<Trainacc.Services.AuthService>();
+builder.Services.AddScoped<Trainacc.Services.RegularTransactionsService>();
+builder.Services.AddHostedService<Trainacc.Background.RegularTransactionsBackgroundService>();
 
 builder.Services.AddCors(option =>
 {
     option.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins("http://localhost:5175");
+        policy.WithOrigins("http://localhost:3000");
         policy.AllowAnyHeader();
         policy.AllowAnyMethod();
     });

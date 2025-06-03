@@ -74,6 +74,15 @@ namespace Trainacc.Services
                 account.Balance += dto.TransactionValue;
             else
                 account.Balance -= dto.TransactionValue;
+
+            if (!dto.IsAdd)
+            {
+                var restriction = await _context.Restrictions.FirstOrDefaultAsync(r => r.AccountId == accountsId && r.Category == dto.Category);
+                if (restriction != null)
+                {
+                    restriction.MoneySpent += dto.TransactionValue;
+                }
+            }
             await _context.SaveChangesAsync();
             return new TransactionDto
             {
@@ -91,13 +100,17 @@ namespace Trainacc.Services
             if (transaction == null) return false;
             var oldIsAdd = transaction.IsAdd;
             var oldValue = transaction.TransactionValue;
+            var oldCategory = transaction.Category;
+            var oldAccountId = transaction.AccountId;
             var account = await _context.Accounts.FirstOrDefaultAsync(a => a.Id == transaction.AccountId);
-            if (account != null)
+            if (!oldIsAdd)
             {
-                if (oldIsAdd)
-                    account.Balance -= oldValue;
-                else
-                    account.Balance += oldValue;
+                var oldRestriction = await _context.Restrictions.FirstOrDefaultAsync(r => r.AccountId == oldAccountId && r.Category == oldCategory);
+                if (oldRestriction != null)
+                {
+                    oldRestriction.MoneySpent -= oldValue;
+                    if (oldRestriction.MoneySpent < 0) oldRestriction.MoneySpent = 0;
+                }
             }
             if (dto.Category != null)
                 transaction.Category = dto.Category;
@@ -124,6 +137,14 @@ namespace Trainacc.Services
                 else
                     account.Balance -= transaction.TransactionValue;
             }
+            if (!transaction.IsAdd)
+            {
+                var newRestriction = await _context.Restrictions.FirstOrDefaultAsync(r => r.AccountId == transaction.AccountId && r.Category == transaction.Category);
+                if (newRestriction != null)
+                {
+                    newRestriction.MoneySpent += transaction.TransactionValue;
+                }
+            }
             await _context.SaveChangesAsync();
             return true;
         }
@@ -133,6 +154,15 @@ namespace Trainacc.Services
             var transaction = await _context.Transactions.FindAsync(id);
             if (transaction == null) return false;
             var account = await _context.Accounts.FirstOrDefaultAsync(a => a.Id == transaction.AccountId);
+            if (!transaction.IsAdd)
+            {
+                var restriction = await _context.Restrictions.FirstOrDefaultAsync(r => r.AccountId == transaction.AccountId && r.Category == transaction.Category);
+                if (restriction != null)
+                {
+                    restriction.MoneySpent -= transaction.TransactionValue;
+                    if (restriction.MoneySpent < 0) restriction.MoneySpent = 0;
+                }
+            }
             if (account != null)
             {
                 if (transaction.IsAdd)

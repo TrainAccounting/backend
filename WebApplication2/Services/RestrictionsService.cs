@@ -16,18 +16,19 @@ namespace Trainacc.Services
 
         public async Task<List<RestrictionDto>> GetRestrictionsAsync()
         {
-            return await _context.Restrictions.Select(r => new RestrictionDto
-            {
-                Id = r.Id,
-                Category = r.Category,
-                RestrictionValue = r.RestrictionValue,
-                MoneySpent = r.MoneySpent
-            }).ToListAsync();
+            return await _context.Restrictions
+                .Select(r => new RestrictionDto
+                {
+                    Id = r.Id,
+                    Category = r.Category,
+                    RestrictionValue = r.RestrictionValue,
+                    MoneySpent = r.MoneySpent
+                }).ToListAsync();
         }
 
         public async Task<RestrictionDto?> GetRestrictionAsync(int id)
         {
-            var r = await _context.Restrictions.FindAsync(id);
+            var r = await _context.Restrictions.FirstOrDefaultAsync(x => x.Id == id);
             if (r == null) return null;
             return new RestrictionDto
             {

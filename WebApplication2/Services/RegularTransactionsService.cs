@@ -109,42 +109,46 @@ namespace Trainacc.Services
             {
                 var account = await _context.Accounts.FindAsync(reg.AccountId);
                 if (account == null) continue;
-                var lastDate = reg.CreatedAt;
-                var lastTx = await _context.Transactions
-                    .Where(t => t.AccountId == reg.AccountId && t.Description == $"Regular:{reg.Id}")
-                    .OrderByDescending(t => t.TimeOfTransaction)
-                    .FirstOrDefaultAsync();
-                if (lastTx != null)
-                    lastDate = lastTx.TimeOfTransaction;
-                int maxIterations = 100;
-                int iter = 0;
-                while ((now - lastDate).TotalDays >= reg.PeriodDays && iter < maxIterations)
+                int daysPassed = (int)(now.Date - reg.CreatedAt.Date).TotalDays;
+                int daysToCreate = Math.Min(daysPassed, reg.PeriodDays);
+                for (int i = 1; i <= daysToCreate; i++)
                 {
+                    var txTime = reg.CreatedAt.Date.AddDays(i);
+                    bool alreadyExists = await _context.Transactions.AnyAsync(t =>
+                        t.AccountId == reg.AccountId &&
+                        t.Description == $"Regular:{reg.Id}" &&
+                        t.TimeOfTransaction == txTime);
+                    if (alreadyExists)
+                        continue;
                     if (reg.IsAdd)
                     {
                         if (account.Balance + reg.TransactionValue > decimal.MaxValue)
-                            break;
+                            continue;
                         account.Balance += reg.TransactionValue;
                     }
                     else
                     {
                         if (account.Balance < reg.TransactionValue)
-                        {
-                            break;
-                        }
+                            throw new Exception($"[Ошибка] Недостаточно средств для регулярной транзакции (ID={reg.Id}, AccountId={reg.AccountId}, Category={reg.Category}, Value={reg.TransactionValue}, IsAdd={reg.IsAdd})");
                         account.Balance -= reg.TransactionValue;
                     }
                     _context.Transactions.Add(new Transactions
                     {
                         Category = reg.Category,
                         TransactionValue = reg.TransactionValue,
-                        TimeOfTransaction = lastDate.AddDays(reg.PeriodDays),
+                        TimeOfTransaction = txTime,
                         AccountId = reg.AccountId,
                         IsAdd = reg.IsAdd,
                         Description = $"Regular:{reg.Id}"
                     });
-                    lastDate = lastDate.AddDays(reg.PeriodDays);
-                    iter++;
+                    if (!reg.IsAdd)
+                    {
+                        var restriction = await _context.Restrictions.FirstOrDefaultAsync(r => r.AccountId == reg.AccountId && r.Category == reg.Category);
+                        if (restriction != null)
+                        {
+                            restriction.MoneySpent += reg.TransactionValue;
+                        }
+                    }
                 }
             }
             await _context.SaveChangesAsync();

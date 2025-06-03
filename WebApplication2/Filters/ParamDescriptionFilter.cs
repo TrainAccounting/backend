@@ -29,21 +29,21 @@ namespace Trainacc.Filters
                             };
                             break;
                         case "Transactions":
-                            param.Description = "Режим запроса. Возможные значения: summary, top, filter, by-record, export.";
+                            param.Description = "Режим запроса. Возможные значения: summary, top, filter, by-account, export.";
                             param.Schema.Enum = new List<IOpenApiAny>
                             {
                                 new OpenApiString("summary"),
                                 new OpenApiString("top"),
                                 new OpenApiString("filter"),
-                                new OpenApiString("by-record"),
+                                new OpenApiString("by-account"),
                                 new OpenApiString("export")
                             };
                             break;
                         case "Restrictions":
-                            param.Description = "Режим запроса. Возможные значения: by-record, exceeded.";
+                            param.Description = "Режим запроса. Возможные значения: by-account, exceeded.";
                             param.Schema.Enum = new List<IOpenApiAny>
                             {
-                                new OpenApiString("by-record"),
+                                new OpenApiString("by-account"),
                                 new OpenApiString("exceeded")
                             };
                             break;
@@ -55,11 +55,17 @@ namespace Trainacc.Filters
                             };
                             break;
                         case "Deposits":
-                        case "Credits":
-                            param.Description = "Режим запроса. Возможные значения: by-record.";
+                            param.Description = "Режим запроса. Возможные значения: by-account.";
                             param.Schema.Enum = new List<IOpenApiAny>
                             {
-                                new OpenApiString("by-record")
+                                new OpenApiString("by-account")
+                            };
+                            break;
+                        case "Credits":
+                            param.Description = "Режим запроса. Возможные значения: by-account.";
+                            param.Schema.Enum = new List<IOpenApiAny>
+                            {
+                                new OpenApiString("by-account")
                             };
                             break;
                         default:
@@ -77,7 +83,7 @@ namespace Trainacc.Filters
                 }
                 if (param.Name == "userId")
                 {
-                    param.Description = "ID пользователя, для которого выполняется запрос. Необходим для получения данных, относящихся к конкретному пользователю (например, балансы, транзакции, ограничения). Часто обязателен для режимов summary, top, filter, balance-history.";
+                    param.Description = "ID пользователя, для которого выполняется запрос. Необходим для получения данных, относящихся к конкретному пользователю (например, балансы, транзакции, ограничения). Часто обязателен для режимов summary, top, filter, balance-history, exceeded.";
                 }
                 if (param.Name == "mode")
                 {
@@ -94,21 +100,21 @@ namespace Trainacc.Filters
                             };
                             break;
                         case "Transactions":
-                            param.Description = "Режим запроса. Возможные значения: summary, top, filter, by-record, export.";
+                            param.Description = "Режим запроса. Возможные значения: summary, top, filter, by-account, export.";
                             param.Schema.Enum = new List<IOpenApiAny>
                             {
                                 new OpenApiString("summary"),
                                 new OpenApiString("top"),
                                 new OpenApiString("filter"),
-                                new OpenApiString("by-record"),
+                                new OpenApiString("by-account"),
                                 new OpenApiString("export")
                             };
                             break;
                         case "Restrictions":
-                            param.Description = "Режим запроса. Возможные значения: by-record, exceeded.";
+                            param.Description = "Режим запроса. Возможные значения: by-account, exceeded.";
                             param.Schema.Enum = new List<IOpenApiAny>
                             {
-                                new OpenApiString("by-record"),
+                                new OpenApiString("by-account"),
                                 new OpenApiString("exceeded")
                             };
                             break;
@@ -120,11 +126,17 @@ namespace Trainacc.Filters
                             };
                             break;
                         case "Deposits":
-                        case "Credits":
-                            param.Description = "Режим запроса. Возможные значения: by-record.";
+                            param.Description = "Режим запроса. Возможные значения: by-account.";
                             param.Schema.Enum = new List<IOpenApiAny>
                             {
-                                new OpenApiString("by-record")
+                                new OpenApiString("by-account")
+                            };
+                            break;
+                        case "Credits":
+                            param.Description = "Режим запроса. Возможные значения: by-account.";
+                            param.Schema.Enum = new List<IOpenApiAny>
+                            {
+                                new OpenApiString("by-account")
                             };
                             break;
                         default:

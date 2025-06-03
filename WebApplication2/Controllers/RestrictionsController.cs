@@ -43,7 +43,9 @@ namespace Trainacc.Controllers
                                 return Ok(await _service.GetRestrictionsByAccountAsync(accountId.Value));
                             return BadRequest("accountId required");
                         case "exceeded":
-                            return BadRequest("Режим 'exceeded' не поддерживается");
+                            if (userId.HasValue)
+                                return Ok(await _service.GetExceededRestrictionsAsync(userId.Value));
+                            return BadRequest("userId required");
                         default:
                             return BadRequest("Unknown mode");
                     }
@@ -94,3 +96,5 @@ namespace Trainacc.Controllers
         }
     }
 }
+
+// Все методы получения ограничений теперь возвращают только активные ограничения через RestrictionsService
